@@ -1,0 +1,12 @@
+{
+  "name": "MarketOps",
+  "short_name": "MarketOps",
+  "description": "Marketing operations platform for distributed teams",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7c5cff",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" }
+  ]
+}
