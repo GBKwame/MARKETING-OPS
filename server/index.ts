@@ -663,18 +663,21 @@ app.post("/api/team/invite", async (req, res) => {
 
     let emailSent = true;
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const smtpPort = parseInt(process.env.SMTP_PORT || "465");
+      const isSecure = process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === "true" : smtpPort === 465;
+
       const dynamicTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.SMTP_PORT || "587"),
-        secure: process.env.SMTP_SECURE === "true",
+        port: smtpPort,
+        secure: isSecure,
         family: 4,
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000,
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 15000,
       } as any);
 
       dynamicTransporter.sendMail(mailOptions).then(() => {
