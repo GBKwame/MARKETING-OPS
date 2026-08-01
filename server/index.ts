@@ -544,9 +544,9 @@ app.get("/api/team", async (req, res) => {
         (m) =>
           m.id === authUser.id ||
           m.role === "marketer" &&
-            (m.supervisorId === authUser.id ||
-              m.branchId === authUser.branchId ||
-              m.campaignId === authUser.campaignId)
+          (m.supervisorId === authUser.id ||
+            m.branchId === authUser.branchId ||
+            m.campaignId === authUser.campaignId)
       );
       return res.json(scoped);
     }
@@ -665,6 +665,12 @@ app.post("/api/team/invite", async (req, res) => {
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       const smtpPort = parseInt(process.env.SMTP_PORT || "465");
       const isSecure = process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === "true" : smtpPort === 465;
+
+      console.log("Looking Up mail")
+      console.log("process.env.SMTP_HOST::", process.env.SMTP_HOST);
+      console.log("smtpPort::", smtpPort);
+      console.log("isSecure::", isSecure);
+      console.log("process.env.SMTP_USER::", process.env.SMTP_USER);
 
       const dynamicTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -1468,14 +1474,14 @@ async function initDbSchema() {
       )
     `);
 
-    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN campaign VARCHAR(255)`); } catch {}
-    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN channel VARCHAR(128)`); } catch {}
-    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN approach VARCHAR(128)`); } catch {}
-    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN destination VARCHAR(255)`); } catch {}
-    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN branch_id VARCHAR(64)`); } catch {}
-    try { await db.execute(sql`ALTER TABLE users ADD COLUMN campaign_id VARCHAR(64)`); } catch {}
-    try { await db.execute(sql`ALTER TABLE users ADD COLUMN picture TEXT`); } catch {}
-    try { await db.execute(sql`ALTER TABLE users ADD COLUMN invitation_status ENUM('pending', 'accepted', 'revoked') DEFAULT 'accepted'`); } catch {}
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN campaign VARCHAR(255)`); } catch { }
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN channel VARCHAR(128)`); } catch { }
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN approach VARCHAR(128)`); } catch { }
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN destination VARCHAR(255)`); } catch { }
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN branch_id VARCHAR(64)`); } catch { }
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN campaign_id VARCHAR(64)`); } catch { }
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN picture TEXT`); } catch { }
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN invitation_status ENUM('pending', 'accepted', 'revoked') DEFAULT 'accepted'`); } catch { }
     console.log("✨ All MySQL tables initialized successfully!");
   } catch (e: any) {
     console.error("DB Init Schema Note:", e.message);
