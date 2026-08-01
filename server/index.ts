@@ -1446,7 +1446,7 @@ async function initDbSchema() {
         user_id VARCHAR(64) NOT NULL,
         title VARCHAR(255) NOT NULL,
         body TEXT NOT NULL,
-        read BOOLEAN NOT NULL DEFAULT FALSE,
+        \`read\` TINYINT(1) NOT NULL DEFAULT 0,
         kind ENUM('activity', 'todo', 'approval') NOT NULL DEFAULT 'activity',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
