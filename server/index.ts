@@ -637,7 +637,7 @@ app.post("/api/team/invite", async (req, res) => {
     const inviteLink = `${origin}/login?email=${encodeURIComponent(email)}`;
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || '"MarketOps Team" <no-reply@marketops.com>',
+      from: process.env.SMTP_FROM || (process.env.SMTP_USER ? `"MarketOps Team" <${process.env.SMTP_USER}>` : '"MarketOps Team" <no-reply@marketops.com>'),
       to: email,
       subject: `Invitation to Join MarketOps as ${targetRole.toUpperCase()}`,
       html: `
