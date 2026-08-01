@@ -36,7 +36,6 @@ const items = [
   { title: "Company Links", url: "/company-links", icon: Share2 },
   { title: "Leads", url: "/leads", icon: Target },
   { title: "Team", url: "/team", icon: Users },
-  { title: "Profile", url: "/profile", icon: User },
   { title: "Settings", url: "/settings", icon: Sliders },
 ];
 
