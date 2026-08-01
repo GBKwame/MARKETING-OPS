@@ -28,6 +28,36 @@ export async function loginApi(credentials: { email: string; password: string })
   });
 }
 
+export async function registerApi(data: { name: string; email: string; password: string; token?: string }) {
+  return fetchApi<{ user: any; token: string }>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function googleAuthApi(data: { credential?: string; email?: string; name?: string; picture?: string }) {
+  return fetchApi<{ user: any; token: string }>("/api/auth/google", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function verifyInvitationApi(params: { email?: string; token?: string }) {
+  const query = new URLSearchParams();
+  if (params.email) query.set("email", params.email);
+  if (params.token) query.set("token", params.token);
+  return fetchApi<{
+    exists: boolean;
+    userExists?: boolean;
+    name?: string;
+    email?: string;
+    role?: string;
+    branchName?: string;
+    campaignName?: string;
+    invitationStatus?: string;
+  }>(`/api/invitations/verify?${query.toString()}`);
+}
+
 export async function logoutApi() {
   return fetchApi<{ success: boolean }>("/api/auth/logout", { method: "POST" });
 }
@@ -205,4 +235,49 @@ export async function deleteLeadApi(id: string) {
 
 export async function getCompanyLinksApi() {
   return fetchApi<any[]>("/api/company-links");
+}
+
+// Team Management & Invitations
+export async function getTeamApi() {
+  return fetchApi<any[]>("/api/team");
+}
+
+export async function inviteTeamMemberApi(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  role: "manager" | "marketer";
+  campaignId?: string;
+  branchId?: string;
+}) {
+  return fetchApi<{
+    success: boolean;
+    emailSent: boolean;
+    whatsappUrl: string;
+    inviteMessage: string;
+    user: any;
+  }>("/api/team/invite", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTeamMemberApi(id: string) {
+  return fetchApi<{ success: boolean; id: string }>(`/api/team/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function promoteTeamMemberApi(
+  id: string,
+  data: {
+    targetRole: "admin" | "manager" | "marketer";
+    branchId?: string;
+    campaignId?: string;
+  }
+) {
+  return fetchApi<{ success: boolean; user: any }>(`/api/team/${id}/promote`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }

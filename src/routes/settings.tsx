@@ -232,19 +232,35 @@ function SettingsPage() {
 
       {/* Workspace Section */}
       <section className="rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="text-sm font-semibold">Workspace Details</div>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold">
-            CZ
-          </div>
-          <div>
-            <div className="font-medium">{WORKSPACE}</div>
-            <div className="text-xs text-muted-foreground">
-              {members.length} active team members · {branches.length} operational branches
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold">
+              CZ
+            </div>
+            <div>
+              <div className="font-medium text-base">{WORKSPACE}</div>
+              <div className="text-xs text-muted-foreground">
+                {members.length} active team members · {branches.length} operational branches
+              </div>
             </div>
           </div>
+          <Button asChild size="sm" className="gap-1.5 font-semibold">
+            <Link to="/team">
+              <Users className="h-4 w-4" /> Go to Team Management
+            </Link>
+          </Button>
         </div>
       </section>
+
+      {/* Team & Branch/Campaign Link Alert */}
+      <div className="rounded-2xl border bg-primary/5 p-5 text-xs text-muted-foreground flex items-center justify-between">
+        <div>
+          <span className="font-bold text-foreground">Centralized Team & Creation Hub:</span> Creation of Branches and Campaigns, as well as Member invitations and role upgrades, are now managed in the dedicated <strong className="text-primary">Team</strong> tab.
+        </div>
+        <Button asChild size="sm" variant="outline" className="shrink-0 ml-4 font-semibold">
+          <Link to="/team">Open Team Tab</Link>
+        </Button>
+      </div>
 
       {/* User Management & Hierarchy */}
       <section className="rounded-2xl border bg-card p-6 shadow-sm">

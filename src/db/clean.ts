@@ -10,6 +10,7 @@ import {
   campaigns,
   users,
   branches,
+  invitations,
 } from "./schema";
 import bcrypt from "bcryptjs";
 import { sql } from "drizzle-orm";
@@ -22,6 +23,7 @@ async function clean() {
 
   await db.delete(leads);
   await db.delete(activities);
+  try { await db.delete(invitations); } catch {}
   await db.delete(todos);
   await db.delete(assets);
   await db.delete(approvals);
@@ -36,15 +38,32 @@ async function clean() {
   try { await db.execute(sql`ALTER TABLE leads ADD COLUMN approach VARCHAR(128)`); } catch {}
   try { await db.execute(sql`ALTER TABLE leads ADD COLUMN destination VARCHAR(255)`); } catch {}
   try { await db.execute(sql`ALTER TABLE leads ADD COLUMN branch_id VARCHAR(64)`); } catch {}
+  try { await db.execute(sql`ALTER TABLE users ADD COLUMN campaign_id VARCHAR(64)`); } catch {}
+  try { await db.execute(sql`ALTER TABLE users ADD COLUMN picture TEXT`); } catch {}
+  try { await db.execute(sql`ALTER TABLE users ADD COLUMN invitation_status ENUM('pending', 'accepted', 'revoked') DEFAULT 'accepted'`); } catch {}
+
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS invitations (
+        id VARCHAR(64) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(128),
+        role ENUM('admin', 'manager', 'marketer') NOT NULL,
+        campaign_id VARCHAR(64),
+        branch_id VARCHAR(64),
+        invited_by_id VARCHAR(64) NOT NULL,
+        status ENUM('pending', 'accepted', 'revoked') NOT NULL DEFAULT 'pending',
+        token VARCHAR(128) NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } catch {}
 
   await db.execute(sql`SET FOREIGN_KEY_CHECKS = 1`);
 
   const passwordHash = await bcrypt.hash("Password123!", 10);
 
-  // 1. Branches (Start clean - 0 branches)
-  // Branches are managed dynamically from Settings
-
-  // 2. Super Admin (Supervises Managers)
+  // Initial Clean Super Admin
   await db.insert(users).values({
     id: "u-admin",
     name: "Ama Boateng",
@@ -56,35 +75,9 @@ async function clean() {
     avatar: "AB",
   });
 
-  // 3. Manager (Supervised by Admin, Supervises Team Members)
-  await db.insert(users).values({
-    id: "u-mgr-accra",
-    name: "Kwame Mensah",
-    email: "manager.accra@carezza.com",
-    passwordHash,
-    role: "manager",
-    branchId: null,
-    supervisorId: "u-admin",
-    avatar: "KM",
-  });
-
-  // 4. Marketer (Supervised by Manager)
-  await db.insert(users).values({
-    id: "u-tm-efua",
-    name: "Efua Owusu",
-    email: "efua@carezza.com",
-    passwordHash,
-    role: "marketer",
-    branchId: null,
-    supervisorId: "u-mgr-accra",
-    avatar: "EO",
-  });
-
-  console.log("✨ 3-Tier User Hierarchy Ready in MySQL!");
-  console.log("🔑 Default Credentials (Password: Password123!):");
-  console.log("   - 🛡️ Admin:       admin@carezza.com");
-  console.log("   - 👔 Manager:     manager.accra@carezza.com");
-  console.log("   - 👤 Marketer:    efua@carezza.com");
+  console.log("✨ Clean Database Reset Completed!");
+  console.log("🔑 Primary Admin Account (Password: Password123!):");
+  console.log("   - 🛡️ Admin: admin@carezza.com");
 }
 
 clean().catch((err) => {

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/lib/theme";
 import { useStore } from "@/lib/store";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 export function Topbar() {
@@ -122,8 +122,11 @@ export function Topbar() {
         {currentUser ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-9 gap-2 rounded-full border bg-background px-2 hover:bg-muted">
-                <Avatar className="h-6 w-6">
+              <Button variant="ghost" className="h-9 gap-2 rounded-full border bg-background px-2 hover:bg-muted cursor-pointer">
+                <Avatar className="h-7 w-7">
+                  {currentUser.picture ? (
+                    <AvatarImage src={currentUser.picture} alt={currentUser.name} />
+                  ) : null}
                   <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-bold">
                     {currentUser.avatar}
                   </AvatarFallback>
@@ -139,16 +142,16 @@ export function Topbar() {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="text-xs font-semibold">{currentUser.name}</div>
-                <div className="text-[11px] text-muted-foreground">{currentUser.email}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{currentUser.email}</div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link to="/login" className="flex items-center gap-2 text-xs">
-                  <User className="h-3.5 w-3.5" /> Switch Account / Demo
+                <Link to="/profile" className="flex items-center gap-2 text-xs cursor-pointer">
+                  <User className="h-3.5 w-3.5" /> View Profile
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-xs text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={handleLogout} className="text-xs text-destructive focus:text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-3.5 w-3.5" /> Logout
               </DropdownMenuItem>
             </DropdownMenuContent>

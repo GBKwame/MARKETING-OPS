@@ -16,6 +16,7 @@ export const assetTypeEnum = mysqlEnum(["flyer", "video", "image", "text", "othe
 export const leadStatusEnum = mysqlEnum(["new", "contacted", "qualified", "client"]);
 export const notificationKindEnum = mysqlEnum(["activity", "todo", "approval"]);
 export const campaignStatusEnum = mysqlEnum(["active", "paused", "completed"]);
+export const invitationStatusEnum = mysqlEnum(["pending", "accepted", "revoked"]);
 
 // --- Campaigns ---
 export const campaigns = mysqlTable("campaigns", {
@@ -43,8 +44,27 @@ export const users = mysqlTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   role: roleEnum.notNull().default("marketer"),
   branchId: varchar("branch_id", { length: 64 }),
+  campaignId: varchar("campaign_id", { length: 64 }),
   supervisorId: varchar("supervisor_id", { length: 64 }),
   avatar: varchar("avatar", { length: 16 }),
+  picture: text("picture"),
+  invitationStatus: mysqlEnum("invitation_status", ["pending", "accepted", "revoked"]).notNull().default("accepted"),
+  createdAt: datetime("created_at").$defaultFn(() => new Date()),
+});
+
+// --- Team Invitations ---
+export const invitations = mysqlTable("invitations", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 128 }),
+  role: roleEnum.notNull(),
+  campaignId: varchar("campaign_id", { length: 64 }),
+  branchId: varchar("branch_id", { length: 64 }),
+  invitedById: varchar("invited_by_id", { length: 64 })
+    .notNull()
+    .references(() => users.id),
+  status: mysqlEnum("status", ["pending", "accepted", "revoked"]).notNull().default("pending"),
+  token: varchar("token", { length: 128 }).notNull(),
   createdAt: datetime("created_at").$defaultFn(() => new Date()),
 });
 

@@ -7,7 +7,9 @@ import {
   FolderKanban,
   Share2,
   Target,
+  Users,
   Sliders,
+  User,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +35,8 @@ const items = [
   { title: "Assets", url: "/assets", icon: FolderKanban },
   { title: "Company Links", url: "/company-links", icon: Share2 },
   { title: "Leads", url: "/leads", icon: Target },
+  { title: "Team", url: "/team", icon: Users },
+  { title: "Profile", url: "/profile", icon: User },
   { title: "Settings", url: "/settings", icon: Sliders },
 ];
 
@@ -43,7 +47,7 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const isMarketer = currentUser?.role === "marketer";
-  const visibleItems = isMarketer ? items.filter((i) => i.url !== "/settings") : items;
+  const visibleItems = isMarketer ? items.filter((i) => i.url !== "/settings" && i.url !== "/team") : items;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/60">

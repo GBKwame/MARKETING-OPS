@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -16,6 +18,7 @@ import {
 } from "../src/db/schema";
 import { eq, desc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { jwtDecode } from "jwt-decode";
 import {
   createSessionToken,
   verifySessionToken,
@@ -45,7 +48,7 @@ async function getAuthUser(req: express.Request) {
 }
 
 // ------------------------------------------------------------------
-// AUTH ROUTES
+// AUTH & REGISTRATION ROUTES
 // ------------------------------------------------------------------
 app.post("/api/auth/login", async (req, res) => {
   try {
@@ -54,7 +57,8 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const [u] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim()));
+    const cleanEmail = email.toLowerCase().trim();
+    const [u] = await db.select().from(users).where(eq(users.email, cleanEmail));
     if (!u || !u.passwordHash) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
@@ -62,6 +66,13 @@ app.post("/api/auth/login", async (req, res) => {
     const valid = await bcrypt.compare(password, u.passwordHash);
     if (!valid) {
       return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Auto-accept invitation if pending
+    if (u.invitationStatus === "pending") {
+      await db.update(users).set({ invitationStatus: "accepted" }).where(eq(users.id, u.id));
+      await db.update(invitations).set({ status: "accepted" }).where(eq(invitations.email, cleanEmail));
+      u.invitationStatus = "accepted";
     }
 
     const token = await createSessionToken({
@@ -80,6 +91,260 @@ app.post("/api/auth/login", async (req, res) => {
   } catch (err: any) {
     console.error("Login error:", err);
     return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/api/auth/google", async (req, res) => {
+  try {
+    const { credential, email: rawEmail, name: rawName, picture: rawPicture } = req.body;
+    let email = rawEmail;
+    let name = rawName;
+    let picture = rawPicture;
+
+    if (credential) {
+      try {
+        const decoded: any = jwtDecode(credential);
+        email = decoded.email;
+        name = decoded.name;
+        picture = decoded.picture;
+      } catch (e: any) {
+        console.error("JWT Decode error:", e.message);
+      }
+    }
+
+    if (!email) {
+      return res.status(400).json({ error: "Valid Google email is required." });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    let [u] = await db.select().from(users).where(eq(users.email, cleanEmail));
+
+    if (!u) {
+      // Check if this is the very first user in the entire database
+      const allUsers = await db.select().from(users);
+      const isFirstUser = allUsers.length === 0;
+
+      // Check invitations table for auto-join
+      const [inv] = await db.select().from(invitations).where(eq(invitations.email, cleanEmail));
+
+      const assignedRole = inv?.role || (isFirstUser ? "admin" : "marketer");
+      const assignedBranchId = inv?.branchId || null;
+      const assignedCampaignId = inv?.campaignId || null;
+      const assignedSupervisorId = inv?.invitedById || null;
+
+      const userId = "u-" + Date.now();
+      const userName = name || email.split("@")[0];
+      const avatar = userName.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2);
+      const passwordHash = await bcrypt.hash("GoogleOAuthUserPassword123!", 10);
+
+      const newUser = {
+        id: userId,
+        name: userName,
+        email: cleanEmail,
+        passwordHash,
+        role: assignedRole,
+        branchId: assignedBranchId,
+        campaignId: assignedCampaignId,
+        supervisorId: assignedSupervisorId,
+        avatar,
+        picture: picture || null,
+        invitationStatus: "accepted" as const,
+        createdAt: new Date(),
+      };
+
+      await db.insert(users).values(newUser);
+      if (inv) {
+        await db.update(invitations).set({ status: "accepted" }).where(eq(invitations.id, inv.id));
+      }
+      [u] = await db.select().from(users).where(eq(users.id, userId));
+    } else {
+      // Update name and picture if provided
+      const updateData: any = {};
+      if (picture) updateData.picture = picture;
+      if (name && (!u.name || u.name === u.email.split("@")[0])) updateData.name = name;
+      if (u.invitationStatus === "pending") updateData.invitationStatus = "accepted";
+
+      if (Object.keys(updateData).length > 0) {
+        await db.update(users).set(updateData).where(eq(users.id, u.id));
+        if (u.invitationStatus === "pending") {
+          await db.update(invitations).set({ status: "accepted" }).where(eq(invitations.email, cleanEmail));
+        }
+        [u] = await db.select().from(users).where(eq(users.id, u.id));
+      }
+    }
+
+    const sessionToken = await createSessionToken({
+      userId: u.id,
+      email: u.email,
+      role: u.role as any,
+      branchId: u.branchId,
+      supervisorId: u.supervisorId,
+    });
+
+    res.setHeader("Set-Cookie", buildSessionCookie(sessionToken));
+    const { passwordHash: _, ...cleaned } = u;
+    return res.json({ user: cleaned, token: sessionToken });
+  } catch (err: any) {
+    console.error("Google auth error:", err);
+    return res.status(500).json({ error: err.message || "Failed to authenticate with Google." });
+  }
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { name, email, password, token: inviteToken } = req.body;
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: "Name, email, and password are required." });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters." });
+    }
+
+    // Check if user already exists
+    const [existingUser] = await db.select().from(users).where(eq(users.email, cleanEmail));
+
+    if (existingUser && existingUser.invitationStatus === "accepted") {
+      return res.status(400).json({ error: "An account with this email already exists. Please sign in." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Case 1: Pending user record already exists (created during invite)
+    if (existingUser && existingUser.invitationStatus === "pending") {
+      await db
+        .update(users)
+        .set({
+          name: name.trim(),
+          passwordHash,
+          invitationStatus: "accepted",
+        })
+        .where(eq(users.id, existingUser.id));
+
+      await db
+        .update(invitations)
+        .set({ status: "accepted" })
+        .where(eq(invitations.email, cleanEmail));
+
+      const [updatedUser] = await db.select().from(users).where(eq(users.id, existingUser.id));
+      const sessionToken = await createSessionToken({
+        userId: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role as any,
+        branchId: updatedUser.branchId,
+        supervisorId: updatedUser.supervisorId,
+      });
+
+      res.setHeader("Set-Cookie", buildSessionCookie(sessionToken));
+      const { passwordHash: _, ...cleaned } = updatedUser;
+      return res.json({ user: cleaned, token: sessionToken });
+    }
+
+    // Case 2: New user registering from invitation or self-registering
+    const allUsers = await db.select().from(users);
+    const isFirstUser = allUsers.length === 0;
+
+    let assignedRole: "admin" | "manager" | "marketer" = isFirstUser ? "admin" : "marketer";
+    let assignedBranchId: string | null = null;
+    let assignedCampaignId: string | null = null;
+    let assignedSupervisorId: string | null = null;
+
+    // Check invitations table
+    const [inv] = await db
+      .select()
+      .from(invitations)
+      .where(eq(invitations.email, cleanEmail));
+
+    if (inv) {
+      assignedRole = inv.role;
+      assignedBranchId = inv.branchId;
+      assignedCampaignId = inv.campaignId;
+      assignedSupervisorId = inv.invitedById;
+      await db.update(invitations).set({ status: "accepted" }).where(eq(invitations.id, inv.id));
+    }
+
+    const userId = "u-" + Date.now();
+    const avatar = name
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
+
+    const newUser = {
+      id: userId,
+      name: name.trim(),
+      email: cleanEmail,
+      passwordHash,
+      role: assignedRole,
+      branchId: assignedBranchId,
+      campaignId: assignedCampaignId,
+      supervisorId: assignedSupervisorId,
+      avatar,
+      invitationStatus: "accepted" as const,
+      createdAt: new Date(),
+    };
+
+    await db.insert(users).values(newUser);
+
+    const sessionToken = await createSessionToken({
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role as any,
+      branchId: newUser.branchId,
+      supervisorId: newUser.supervisorId,
+    });
+
+    res.setHeader("Set-Cookie", buildSessionCookie(sessionToken));
+    const { passwordHash: _, ...cleaned } = newUser;
+    return res.json({ user: cleaned, token: sessionToken });
+  } catch (err: any) {
+    console.error("Register error:", err);
+    return res.status(500).json({ error: err.message || "Internal server error" });
+  }
+});
+
+app.get("/api/invitations/verify", async (req, res) => {
+  try {
+    const rawEmail = (req.query.email as string) || "";
+    const cleanEmail = rawEmail.toLowerCase().trim();
+
+    if (!cleanEmail) {
+      return res.json({ exists: false });
+    }
+
+    const [pendingUser] = await db.select().from(users).where(eq(users.email, cleanEmail));
+    const [inv] = await db.select().from(invitations).where(eq(invitations.email, cleanEmail));
+
+    if (!pendingUser && !inv) {
+      return res.json({ exists: false, userExists: false });
+    }
+
+    const userExists = pendingUser ? pendingUser.invitationStatus === "accepted" : false;
+    const targetBranchId = pendingUser?.branchId || inv?.branchId || null;
+    const targetCampaignId = pendingUser?.campaignId || inv?.campaignId || null;
+
+    const [bObj] = targetBranchId
+      ? await db.select().from(branches).where(eq(branches.id, targetBranchId))
+      : [null];
+    const [cObj] = targetCampaignId
+      ? await db.select().from(campaigns).where(eq(campaigns.id, targetCampaignId))
+      : [null];
+
+    return res.json({
+      exists: true,
+      userExists,
+      name: pendingUser?.name || "",
+      email: cleanEmail,
+      role: pendingUser?.role || inv?.role || "marketer",
+      branchName: bObj?.name || "Workspace HQ",
+      campaignName: cObj?.name || "General Campaign",
+      invitationStatus: pendingUser?.invitationStatus || inv?.status || "pending",
+    });
+  } catch (err: any) {
+    console.error("Verify invitation error:", err);
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -113,8 +378,21 @@ app.get("/api/users", async (_req, res) => {
   }
 });
 
+import nodemailer from "nodemailer";
+import { invitations } from "../src/db/schema";
+
+const mailTransporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || "smtp.ethereal.email",
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  secure: process.env.SMTP_SECURE === "true",
+  auth: {
+    user: process.env.SMTP_USER || "test@marketops.com",
+    pass: process.env.SMTP_PASS || "testpass",
+  },
+});
+
 // ------------------------------------------------------------------
-// BRANCHES & CAMPAIGNS
+// BRANCHES & CAMPAIGNS (ADMIN ONLY CREATION)
 // ------------------------------------------------------------------
 app.get("/api/branches", async (_req, res) => {
   try {
@@ -128,8 +406,8 @@ app.get("/api/branches", async (_req, res) => {
 app.post("/api/branches", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || (user.role !== "admin" && user.role !== "manager")) {
-      return res.status(403).json({ error: "Only Admins and Managers can add branches." });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Only Admin can create branches." });
     }
 
     const { name, location } = req.body;
@@ -151,8 +429,8 @@ app.post("/api/branches", async (req, res) => {
 app.delete("/api/branches/:id", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || (user.role !== "admin" && user.role !== "manager")) {
-      return res.status(403).json({ error: "Only Admins and Managers can delete branches." });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Only Admin can delete branches." });
     }
 
     const { id } = req.params;
@@ -166,8 +444,8 @@ app.delete("/api/branches/:id", async (req, res) => {
 app.patch("/api/branches/:id", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || (user.role !== "admin" && user.role !== "manager")) {
-      return res.status(403).json({ error: "Only Admins and Managers can edit branches." });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Only Admin can edit branches." });
     }
 
     const { id } = req.params;
@@ -202,7 +480,14 @@ app.get("/api/campaigns", async (_req, res) => {
 
 app.post("/api/campaigns", async (req, res) => {
   try {
+    const user = await getAuthUser(req);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Only Admin can create campaigns." });
+    }
+
     const { name, description, budget } = req.body;
+    if (!name) return res.status(400).json({ error: "Campaign name is required." });
+
     const newCamp = {
       id: "c-" + Date.now(),
       name,
@@ -213,6 +498,269 @@ app.post("/api/campaigns", async (req, res) => {
     await db.insert(campaigns).values(newCamp);
     return res.json(newCamp);
   } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ------------------------------------------------------------------
+// TEAM MANAGEMENT & INVITATIONS
+// ------------------------------------------------------------------
+app.get("/api/team", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    const allUsers = await db.select().from(users);
+    const allBranches = await db.select().from(branches);
+    const allCampaigns = await db.select().from(campaigns);
+
+    const formatted = allUsers.map((u) => {
+      const bObj = allBranches.find((br) => br.id === u.branchId);
+      const cObj = allCampaigns.find((c) => c.id === u.campaignId);
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        invitationStatus: u.invitationStatus || "accepted",
+        branchId: u.branchId,
+        branchName: bObj?.name || "Unassigned",
+        campaignId: u.campaignId,
+        campaignName: cObj?.name || "General / Unassigned",
+        supervisorId: u.supervisorId,
+        avatar: u.avatar || u.name.substring(0, 2).toUpperCase(),
+        createdAt: u.createdAt,
+      };
+    });
+
+    // Scope by role:
+    if (!authUser || authUser.role === "admin") {
+      return res.json(formatted);
+    }
+
+    if (authUser.role === "manager") {
+      // Manager sees marketers assigned to them / their branch/campaign, plus themselves
+      const scoped = formatted.filter(
+        (m) =>
+          m.id === authUser.id ||
+          m.role === "marketer" &&
+            (m.supervisorId === authUser.id ||
+              m.branchId === authUser.branchId ||
+              m.campaignId === authUser.campaignId)
+      );
+      return res.json(scoped);
+    }
+
+    // Marketer sees their supervisor and themselves
+    const scoped = formatted.filter(
+      (m) => m.id === authUser.id || m.id === authUser.supervisorId
+    );
+    return res.json(scoped);
+  } catch (err: any) {
+    console.error("Get team error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/team/invite", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || (authUser.role !== "admin" && authUser.role !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized to invite team members." });
+    }
+
+    const { name, email, phone, role, campaignId, branchId } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ error: "Name and email are required." });
+    }
+
+    const [existing] = await db.select().from(users).where(eq(users.email, email.trim()));
+    if (existing) {
+      return res.status(400).json({ error: "A member with this email address already exists in the workspace." });
+    }
+
+    const targetRole = role || "marketer";
+
+    // Permission check: Manager can only invite Marketers
+    if (authUser.role === "manager" && targetRole !== "marketer") {
+      return res.status(403).json({ error: "Managers can only invite Marketers." });
+    }
+
+    const passwordHash = await bcrypt.hash("Password123!", 10);
+    const userId = "u-" + Date.now();
+    const avatar = name.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2);
+
+    const targetBranchId = (branchId && branchId.trim()) || (authUser.branchId && authUser.branchId.trim()) || null;
+    const targetCampaignId = (campaignId && campaignId.trim()) || (authUser.campaignId && authUser.campaignId.trim()) || null;
+    const rawSupervisor = authUser.role === "manager" ? authUser.id : authUser.supervisorId;
+    const targetSupervisorId = (rawSupervisor && rawSupervisor.trim()) || null;
+
+    // Create user with status 'pending'
+    const newUser = {
+      id: userId,
+      name,
+      email,
+      passwordHash,
+      role: targetRole,
+      branchId: targetBranchId ? targetBranchId : null,
+      campaignId: targetCampaignId ? targetCampaignId : null,
+      supervisorId: targetSupervisorId ? targetSupervisorId : null,
+      avatar,
+      invitationStatus: "pending" as const,
+      createdAt: new Date(),
+    };
+
+    await db.insert(users).values(newUser);
+
+    // Record in invitations table
+    const inviteId = "inv-" + Date.now();
+    await db.insert(invitations).values({
+      id: inviteId,
+      email,
+      phone: phone || null,
+      role: targetRole,
+      campaignId: newUser.campaignId,
+      branchId: newUser.branchId,
+      invitedById: authUser.id,
+      status: "pending",
+      token: "tok-" + Date.now(),
+      createdAt: new Date(),
+    });
+
+    // Lookup names
+    const [bObj] = newUser.branchId ? await db.select().from(branches).where(eq(branches.id, newUser.branchId)) : [null];
+    const [cObj] = newUser.campaignId ? await db.select().from(campaigns).where(eq(campaigns.id, newUser.campaignId)) : [null];
+
+    const branchName = bObj?.name || "Default HQ";
+    const campaignName = cObj?.name || "General Campaign";
+
+    // Build Email & Nodemailer SMTP dispatch
+    const origin = req.headers.origin || `http://localhost:8080`;
+    const inviteLink = `${origin}/login?email=${encodeURIComponent(email)}`;
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || '"MarketOps Team" <no-reply@marketops.com>',
+      to: email,
+      subject: `Invitation to Join MarketOps as ${targetRole.toUpperCase()}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+          <h2 style="color: #0f172a; margin-top: 0;">MarketOps Workspace Invitation</h2>
+          <p style="color: #475569; font-size: 14px;">Hello <strong>${name}</strong>,</p>
+          <p style="color: #475569; font-size: 14px;">
+            You have been invited by <strong>${authUser.name}</strong> (${authUser.role.toUpperCase()}) to join <strong>MarketOps</strong> as a <strong>${targetRole.toUpperCase()}</strong>.
+          </p>
+          <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Branch:</strong> ${branchName}</p>
+            <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Campaign:</strong> ${campaignName}</p>
+            <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Default Password:</strong> Password123!</p>
+          </div>
+          <div style="text-align: center; margin-top: 24px;">
+            <a href="${inviteLink}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">Accept & Sign In</a>
+          </div>
+        </div>
+      `,
+    };
+
+    let emailSent = true;
+    const dynamicTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
+      port: parseInt(process.env.SMTP_PORT || "587"),
+      secure: process.env.SMTP_SECURE === "true",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    dynamicTransporter.sendMail(mailOptions).catch((e: any) => {
+      console.log("SMTP Info Note (Background dispatch):", e.message);
+    });
+
+    // Build WhatsApp URL
+    const rawPhone = (phone || "").replace(/[^0-9]/g, "");
+    const waText = `Hi ${name}, you've been invited by ${authUser.name} to join MarketOps as ${targetRole.toUpperCase()} for ${branchName} / ${campaignName}. Log in here: ${inviteLink} (Password: Password123!)`;
+    const whatsappUrl = rawPhone
+      ? `https://wa.me/${rawPhone}?text=${encodeURIComponent(waText)}`
+      : `https://wa.me/?text=${encodeURIComponent(waText)}`;
+
+    return res.json({
+      success: true,
+      emailSent,
+      whatsappUrl,
+      inviteMessage: waText,
+      user: {
+        ...newUser,
+        branchName,
+        campaignName,
+      },
+    });
+  } catch (err: any) {
+    console.error("Invite team member error cause:", err.cause || err);
+    return res.status(500).json({ error: err.cause?.message || err.sqlMessage || err.message });
+  }
+});
+
+app.delete("/api/team/:id", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || (authUser.role !== "admin" && authUser.role !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized to delete members." });
+    }
+
+    const { id } = req.params;
+    const [targetUser] = await db.select().from(users).where(eq(users.id, id));
+    if (!targetUser) return res.status(404).json({ error: "Member not found." });
+
+    if (authUser.role === "manager" && targetUser.role !== "marketer") {
+      return res.status(403).json({ error: "Managers can only revoke Marketers." });
+    }
+
+    // Revoke user by setting invitationStatus to 'revoked' and deleting record
+    await db.update(users).set({ invitationStatus: "revoked" }).where(eq(users.id, id));
+    await db.delete(users).where(eq(users.id, id));
+
+    return res.json({ success: true, id });
+  } catch (err: any) {
+    console.error("Delete team member error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/team/:id/promote", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== "admin") {
+      return res.status(403).json({ error: "Only Admin can change member roles." });
+    }
+
+    const { id } = req.params;
+    const { targetRole, branchId, campaignId } = req.body;
+
+    if (!targetRole || !["admin", "manager", "marketer"].includes(targetRole)) {
+      return res.status(400).json({ error: "Valid targetRole (admin, manager, marketer) is required." });
+    }
+
+    const updatePayload: any = {
+      role: targetRole,
+      invitationStatus: "accepted",
+    };
+
+    if (targetRole === "manager") {
+      if (branchId) updatePayload.branchId = branchId;
+      if (campaignId) updatePayload.campaignId = campaignId;
+    } else if (targetRole === "admin") {
+      // Admins have full access
+      updatePayload.branchId = null;
+      updatePayload.campaignId = null;
+      updatePayload.supervisorId = null;
+    }
+
+    await db.update(users).set(updatePayload).where(eq(users.id, id));
+
+    const [updatedUser] = await db.select().from(users).where(eq(users.id, id));
+    const cleaned = { ...updatedUser, passwordHash: undefined };
+
+    return res.json({ success: true, user: cleaned });
+  } catch (err: any) {
+    console.error("Promote team member error:", err);
     return res.status(500).json({ error: err.message });
   }
 });

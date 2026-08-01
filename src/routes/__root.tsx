@@ -72,6 +72,57 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+import { useStore } from "@/lib/store";
+import { useRouterState, Navigate } from "@tanstack/react-router";
+
+function ProtectedLayout() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const search = useRouterState({ select: (s) => s.location.search });
+  const { currentUser, loading } = useStore();
+
+  const isAuthPage = pathname === "/login" || pathname === "/register";
+
+  if (isAuthPage) {
+    return (
+      <div className="min-h-screen w-full bg-background">
+        <Outlet />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-xs font-semibold text-muted-foreground">Authenticating workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/login" search={{ email: (search as any)?.email, token: (search as any)?.token }} />;
+  }
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <div className="hidden md:block">
+          <AppSidebar />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar />
+          <main className="flex-1 px-4 pb-24 pt-6 md:px-8 md:pb-10">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+      <MobileBottomNav />
+    </SidebarProvider>
+  );
+}
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -85,21 +136,8 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <StoreProvider>
-          <SidebarProvider>
-            <div className="flex min-h-screen w-full bg-background">
-              <div className="hidden md:block">
-                <AppSidebar />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col">
-                <Topbar />
-                <main className="flex-1 px-4 pb-24 pt-6 md:px-8 md:pb-10">
-                  <Outlet />
-                </main>
-              </div>
-            </div>
-            <MobileBottomNav />
-            <Toaster position="top-right" />
-          </SidebarProvider>
+          <ProtectedLayout />
+          <Toaster position="top-right" />
         </StoreProvider>
       </ThemeProvider>
     </QueryClientProvider>

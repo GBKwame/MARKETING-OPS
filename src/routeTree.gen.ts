@@ -17,7 +17,10 @@ import { Route as CompanyLinksRouteImport } from './routes/company-links'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MoreRouteImport } from './routes/more'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TeamRouteImport } from './routes/team'
 import { Route as TodoRouteImport } from './routes/todo'
 import { Route as ChannelNameRouteImport } from './routes/channel.$name'
 import { Route as MemberIdRouteImport } from './routes/member.$id'
@@ -62,9 +65,24 @@ const MoreRoute = MoreRouteImport.update({
   path: '/more',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TodoRoute = TodoRouteImport.update({
@@ -92,7 +110,10 @@ export interface FileRoutesByFullPath {
   '/leads': typeof LeadsRoute
   '/login': typeof LoginRoute
   '/more': typeof MoreRoute
+  '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
   '/todo': typeof TodoRoute
   '/channel/$name': typeof ChannelNameRoute
   '/member/$id': typeof MemberIdRoute
@@ -106,7 +127,10 @@ export interface FileRoutesByTo {
   '/leads': typeof LeadsRoute
   '/login': typeof LoginRoute
   '/more': typeof MoreRoute
+  '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
   '/todo': typeof TodoRoute
   '/channel/$name': typeof ChannelNameRoute
   '/member/$id': typeof MemberIdRoute
@@ -121,7 +145,10 @@ export interface FileRoutesById {
   '/leads': typeof LeadsRoute
   '/login': typeof LoginRoute
   '/more': typeof MoreRoute
+  '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
   '/todo': typeof TodoRoute
   '/channel/$name': typeof ChannelNameRoute
   '/member/$id': typeof MemberIdRoute
@@ -137,7 +164,10 @@ export interface FileRouteTypes {
     | '/leads'
     | '/login'
     | '/more'
+    | '/profile'
+    | '/register'
     | '/settings'
+    | '/team'
     | '/todo'
     | '/channel/$name'
     | '/member/$id'
@@ -151,7 +181,10 @@ export interface FileRouteTypes {
     | '/leads'
     | '/login'
     | '/more'
+    | '/profile'
+    | '/register'
     | '/settings'
+    | '/team'
     | '/todo'
     | '/channel/$name'
     | '/member/$id'
@@ -165,7 +198,10 @@ export interface FileRouteTypes {
     | '/leads'
     | '/login'
     | '/more'
+    | '/profile'
+    | '/register'
     | '/settings'
+    | '/team'
     | '/todo'
     | '/channel/$name'
     | '/member/$id'
@@ -180,7 +216,10 @@ export interface RootRouteChildren {
   LeadsRoute: typeof LeadsRoute
   LoginRoute: typeof LoginRoute
   MoreRoute: typeof MoreRoute
+  ProfileRoute: typeof ProfileRoute
+  RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
+  TeamRoute: typeof TeamRoute
   TodoRoute: typeof TodoRoute
   ChannelNameRoute: typeof ChannelNameRoute
   MemberIdRoute: typeof MemberIdRoute
@@ -244,11 +283,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MoreRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/todo': {
@@ -284,7 +344,10 @@ const rootRouteChildren: RootRouteChildren = {
   LeadsRoute: LeadsRoute,
   LoginRoute: LoginRoute,
   MoreRoute: MoreRoute,
+  ProfileRoute: ProfileRoute,
+  RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
+  TeamRoute: TeamRoute,
   TodoRoute: TodoRoute,
   ChannelNameRoute: ChannelNameRoute,
   MemberIdRoute: MemberIdRoute,

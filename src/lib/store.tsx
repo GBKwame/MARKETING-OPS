@@ -35,6 +35,10 @@ import {
   getCampaignsApi,
   getNotificationsApi,
   markNotificationsReadApi,
+  getTeamApi,
+  inviteTeamMemberApi,
+  deleteTeamMemberApi,
+  promoteTeamMemberApi,
 } from "./api";
 
 export type Role = "admin" | "manager" | "marketer";
@@ -45,9 +49,14 @@ export interface Member {
   email: string;
   role: Role;
   branch?: string;
+  branchName?: string;
   branchId?: string | null;
+  campaignId?: string | null;
+  campaignName?: string;
+  invitationStatus?: "pending" | "accepted" | "revoked";
   supervisorId?: string | null;
   avatar: string;
+  picture?: string | null;
 }
 
 export interface Campaign {
@@ -196,6 +205,9 @@ interface StoreValue {
   logActivity: (data: Partial<Activity>) => Promise<void>;
   updateActivity: (id: string, data: Partial<Activity>) => Promise<void>;
   deleteActivity: (id: string) => Promise<void>;
+  inviteTeamMember: (data: any) => Promise<{ success: boolean; emailSent: boolean; whatsappUrl: string; inviteMessage: string; user: any }>;
+  deleteTeamMember: (id: string) => Promise<void>;
+  promoteTeamMember: (id: string, data: any) => Promise<void>;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   loading: boolean;
@@ -214,7 +226,7 @@ const DEFAULT_GUEST: Member = {
 };
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<Member | null>(DEFAULT_GUEST);
+  const [currentUser, setCurrentUser] = useState<Member | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -231,7 +243,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const loadAllData = useCallback(async () => {
     try {
-      const [uRes, m, b, c, act, t, app, ass, l, cl, notifs] = await Promise.all([
+      const [uRes, m, b, c, act, t, app, ass, l, cl, notifs, teamRes] = await Promise.all([
         getMeApi().catch(() => ({ user: null })),
         getUsersApi().catch(() => []),
         getBranchesApi().catch(() => []),
@@ -243,11 +255,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         getLeadsApi().catch(() => []),
         getCompanyLinksApi().catch(() => []),
         getNotificationsApi().catch(() => []),
+        getTeamApi().catch(() => null),
       ]);
 
       const branchMap = new Map((b || []).map((br: any) => [br.id, br.name]));
 
       if (uRes?.user) setCurrentUser(uRes.user);
+
+      if (teamRes && Array.isArray(teamRes)) {
+        setMembers(teamRes);
+      } else if (Array.isArray(m)) {
+        setMembers(m);
+      }
       setMembers(m);
       setBranches(b);
       setCampaigns(c);
@@ -419,6 +438,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setLeads((prev) => prev.filter((l) => l.id !== id));
   }, []);
 
+  const inviteTeamMember = useCallback(async (data: any) => {
+    const res = await inviteTeamMemberApi(data);
+    await loadAllData();
+    return res;
+  }, [loadAllData]);
+
+  const deleteTeamMember = useCallback(async (id: string) => {
+    await deleteTeamMemberApi(id);
+    await loadAllData();
+  }, [loadAllData]);
+
+  const promoteTeamMember = useCallback(async (id: string, data: any) => {
+    await promoteTeamMemberApi(id, data);
+    await loadAllData();
+  }, [loadAllData]);
+
   const value: StoreValue = {
     currentUser,
     setCurrentUser,
@@ -444,6 +479,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     createLead,
     updateLead,
     deleteLead,
+    inviteTeamMember,
+    deleteTeamMember,
+    promoteTeamMember,
     companyLinks,
     updateCompanyLink,
     notifications,

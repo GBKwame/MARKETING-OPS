@@ -18,44 +18,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { loginApi, registerApi, verifyInvitationApi, googleAuthApi } from "@/lib/api";
+import { registerApi, verifyInvitationApi, googleAuthApi } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 
-interface LoginSearch {
+interface RegisterSearch {
   email?: string;
   token?: string;
-  tab?: "login" | "register";
 }
 
-export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>): LoginSearch => ({
+export const Route = createFileRoute("/register")({
+  validateSearch: (search: Record<string, unknown>): RegisterSearch => ({
     email: search.email as string,
     token: search.token as string,
-    tab: search.tab as "login" | "register",
   }),
   head: () => ({
     meta: [
-      { title: "Sign In / Register — MarketOps" },
-      { name: "description", content: "Sign in or create an account to access MarketOps workspace." },
+      { title: "Create Account — MarketOps" },
+      { name: "description", content: "Create an account to join MarketOps workspace." },
     ],
   }),
-  component: LoginPage,
+  component: RegisterPage,
 });
 
-function LoginPage() {
+function RegisterPage() {
   const navigate = useNavigate();
-  const search = useSearch({ from: "/login" });
+  const search = useSearch({ from: "/register" });
   const { setCurrentUser, refreshData } = useStore();
 
-  const [activeTab, setActiveTab] = useState<"login" | "register">(search.tab || "login");
   const [email, setEmail] = useState(search.email || "");
-  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Invitation metadata
   const [invitationInfo, setInvitationInfo] = useState<{
     exists: boolean;
     userExists?: boolean;
@@ -66,23 +62,21 @@ function LoginPage() {
     campaignName?: string;
   } | null>(null);
 
-  // Auto-verify invitation details if email parameter present
   useEffect(() => {
     if (search.email) {
       setEmail(search.email);
       verifyInvitationApi({ email: search.email, token: search.token }).then((res) => {
         if (res.exists) {
           setInvitationInfo(res);
-          if (res.name && !name) setName(res.name);
+          if (res.name) setName(res.name);
           if (res.userExists) {
-            setActiveTab("login");
-          } else {
-            setActiveTab("register");
+            toast.info("Account already exists. Please sign in.");
+            navigate({ to: "/login", search: { email: search.email, token: search.token } });
           }
         }
       }).catch(() => null);
     }
-  }, [search.email, search.token]);
+  }, [search.email, search.token, navigate]);
 
   // Google Identity Services Initialization
   useEffect(() => {
@@ -106,12 +100,12 @@ function LoginPage() {
                   const res = await googleAuthApi({ credential: response.credential });
                   if (res.user) {
                     setCurrentUser(res.user);
-                    toast.success(`Welcome, ${res.user.name}! Signed in via Google OAuth.`);
+                    toast.success(`Welcome, ${res.user.name}! Account created via Google OAuth.`);
                     await refreshData();
                     navigate({ to: "/" });
                   }
                 } catch (err: any) {
-                  toast.error(err.message || "Google OAuth sign in failed.");
+                  toast.error(err.message || "Google OAuth sign up failed.");
                 } finally {
                   setLoading(false);
                 }
@@ -167,26 +161,6 @@ function LoginPage() {
     }
   };
 
-  // Handle Login Submission
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await loginApi({ email: email.trim(), password });
-      if (res.user) {
-        setCurrentUser(res.user);
-        toast.success(`Welcome back, ${res.user.name}! Workspace joined.`);
-        await refreshData();
-        navigate({ to: "/" });
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to log in.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Register Submission
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -224,25 +198,17 @@ function LoginPage() {
     }
   };
 
-  const handleQuickDemo = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword("Password123!");
-    setActiveTab("login");
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-md space-y-5">
-        {/* Header */}
         <div className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md">
             <Sparkles className="h-6 w-6" />
           </div>
           <h1 className="mt-3 text-2xl font-bold tracking-tight">MarketOps</h1>
-          <p className="text-sm text-muted-foreground">Marketing Operations & Team Workspace</p>
+          <p className="text-sm text-muted-foreground">Create Your Account & Join Workspace</p>
         </div>
 
-        {/* Invitation Welcome Banner */}
         {invitationInfo?.exists && (
           <div className="rounded-2xl border bg-card p-4 shadow-sm space-y-2 border-primary/40 bg-primary/5">
             <div className="flex items-center gap-2 font-bold text-xs text-primary">
@@ -259,62 +225,18 @@ function LoginPage() {
                 <Megaphone className="h-3 w-3 text-primary" /> {invitationInfo.campaignName}
               </Badge>
             </div>
-            {invitationInfo.userExists ? (
-              <p className="text-[11px] text-muted-foreground pt-1">
-                An account already exists for <strong>{invitationInfo.email}</strong>. Sign in with your password to join!
-              </p>
-            ) : (
-              <p className="text-[11px] text-muted-foreground pt-1">
-                Please set your password below to create your account and automatically join.
-              </p>
-            )}
           </div>
         )}
 
-        {/* Main Card */}
         <Card className="shadow-xl rounded-2xl border overflow-hidden">
-          {/* Tab Selection Switcher */}
-          <div className="grid grid-cols-2 border-b bg-muted/40 p-1 text-xs font-semibold">
-            <button
-              type="button"
-              className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === "login"
-                  ? "bg-card text-foreground shadow-2xs font-bold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setActiveTab("login")}
-            >
-              <Lock className="h-3.5 w-3.5" /> Sign In
-            </button>
-            <button
-              type="button"
-              className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === "register"
-                  ? "bg-card text-foreground shadow-2xs font-bold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => {
-                setActiveTab("register");
-                if (password === "Password123!" && !search.email) setPassword("");
-              }}
-            >
-              <UserPlus className="h-3.5 w-3.5" /> Create Account
-            </button>
-          </div>
-
           <CardHeader className="pt-5 pb-2">
-            <CardTitle className="text-lg">
-              {activeTab === "login" ? "Sign In to Your Account" : "Create Your Workspace Account"}
-            </CardTitle>
+            <CardTitle className="text-lg">Create Your Account</CardTitle>
             <CardDescription className="text-xs">
-              {activeTab === "login"
-                ? "Enter your credentials to access your dashboard"
-                : "Register your details to join your workspace team"}
+              Enter your details below to set your password and join
             </CardDescription>
           </CardHeader>
 
           <CardContent className="pt-2 pb-6 space-y-4">
-            {/* Google Sign-In Option */}
             <Button
               type="button"
               variant="outline"
@@ -352,120 +274,84 @@ function LoginPage() {
               </span>
             </div>
 
-            {/* SIGN IN FORM */}
-            {activeTab === "login" && (
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-semibold">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="name@carezza.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-9 h-9 text-xs rounded-lg"
-                      required
-                    />
-                  </div>
-                </div>
+            <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-name" className="text-xs font-semibold">Full Name *</Label>
+                <Input
+                  id="reg-name"
+                  type="text"
+                  placeholder="e.g. Ama Boateng"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-9 text-xs rounded-lg"
+                  required
+                />
+              </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="password" className="text-xs font-semibold">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-9 h-9 text-xs rounded-lg"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <Button type="submit" className="w-full gap-2 font-bold cursor-pointer rounded-lg h-9 text-xs shadow-sm" disabled={loading}>
-                  {loading ? "Authenticating..." : "Sign In & Join"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </form>
-            )}
-
-            {/* REGISTER / CREATE ACCOUNT FORM */}
-            {activeTab === "register" && (
-              <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-                <div className="space-y-1.5">
-                  <Label htmlFor="reg-name" className="text-xs font-semibold">Full Name *</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-email" className="text-xs font-semibold">Email Address *</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="reg-name"
-                    type="text"
-                    placeholder="e.g. Ama Boateng"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="h-9 text-xs rounded-lg"
+                    id="reg-email"
+                    type="email"
+                    placeholder="name@carezza.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-9 h-9 text-xs rounded-lg"
                     required
                   />
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="reg-email" className="text-xs font-semibold">Email Address *</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="reg-email"
-                      type="email"
-                      placeholder="name@carezza.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-9 h-9 text-xs rounded-lg"
-                      required
-                    />
-                  </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-password" className="text-xs font-semibold">Password *</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="reg-password"
+                    type="password"
+                    placeholder="At least 6 characters"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-9 h-9 text-xs rounded-lg"
+                    required
+                  />
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="reg-password" className="text-xs font-semibold">Create Password *</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="reg-password"
-                      type="password"
-                      placeholder="At least 6 characters"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-9 h-9 text-xs rounded-lg"
-                      required
-                    />
-                  </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-confirm" className="text-xs font-semibold">Confirm Password *</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="reg-confirm"
+                    type="password"
+                    placeholder="Re-enter password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-9 h-9 text-xs rounded-lg"
+                    required
+                  />
                 </div>
+              </div>
 
-                {!search.email && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="reg-confirm" className="text-xs font-semibold">Confirm Password *</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="reg-confirm"
-                        type="password"
-                        placeholder="Re-enter password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="pl-9 h-9 text-xs rounded-lg"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
+              <Button type="submit" className="w-full gap-2 font-bold cursor-pointer rounded-lg h-9 text-xs shadow-sm mt-2" disabled={loading}>
+                {loading ? "Creating Account..." : "Create Account & Join"}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </form>
 
-                <Button type="submit" className="w-full gap-2 font-bold cursor-pointer rounded-lg h-9 text-xs shadow-sm mt-1" disabled={loading}>
-                  {loading ? "Creating Account..." : "Create Account & Join"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </form>
-            )}
+            <div className="text-center pt-2 text-xs text-muted-foreground">
+              Already have an account?{" "}
+              <button
+                type="button"
+                className="font-bold text-primary hover:underline cursor-pointer"
+                onClick={() => navigate({ to: "/login", search: { email, token: search.token } })}
+              >
+                Sign In
+              </button>
+            </div>
           </CardContent>
         </Card>
       </div>
