@@ -790,8 +790,8 @@ app.post("/api/team/:id/promote", async (req, res) => {
 app.patch("/api/campaigns/:id", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || (user.role !== "admin" && user.role !== "manager")) {
-      return res.status(403).json({ error: "Only Admins and Managers can edit campaigns." });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Only Admin can edit campaigns." });
     }
 
     const { id } = req.params;
@@ -811,8 +811,8 @@ app.patch("/api/campaigns/:id", async (req, res) => {
 app.delete("/api/campaigns/:id", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || (user.role !== "admin" && user.role !== "manager")) {
-      return res.status(403).json({ error: "Only Admins and Managers can delete campaigns." });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Only Admin can delete campaigns." });
     }
 
     const { id } = req.params;

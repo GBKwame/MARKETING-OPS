@@ -323,64 +323,80 @@ function SettingsPage() {
           </div>
         </div>
 
-        <form onSubmit={handleAddCampaign} className="mt-4 flex flex-wrap gap-2">
-          <Input
-            placeholder="Campaign Name..."
-            value={newCampaignName}
-            onChange={(e) => setNewCampaignName(e.target.value)}
-            className="h-9 w-48 text-xs sm:w-64"
-            required
-          />
-          <Input
-            type="number"
-            placeholder="Budget ($)"
-            value={newCampaignBudget}
-            onChange={(e) => setNewCampaignBudget(e.target.value)}
-            className="h-9 w-28 text-xs"
-          />
-          <Button type="submit" size="sm" className="h-9 gap-1.5 cursor-pointer font-semibold" disabled={addingCampaign}>
-            <Plus className="h-4 w-4" /> {addingCampaign ? "Adding..." : "Add Campaign"}
-          </Button>
-        </form>
+        {isAdmin ? (
+          <form onSubmit={handleAddCampaign} className="mt-4 flex flex-wrap gap-2">
+            <Input
+              placeholder="Campaign Name..."
+              value={newCampaignName}
+              onChange={(e) => setNewCampaignName(e.target.value)}
+              className="h-9 w-48 text-xs sm:w-64"
+              required
+            />
+            <Input
+              type="number"
+              placeholder="Budget ($)"
+              value={newCampaignBudget}
+              onChange={(e) => setNewCampaignBudget(e.target.value)}
+              className="h-9 w-28 text-xs"
+            />
+            <Button type="submit" size="sm" className="h-9 gap-1.5 cursor-pointer font-semibold" disabled={addingCampaign}>
+              <Plus className="h-4 w-4" /> {addingCampaign ? "Adding..." : "Add Campaign"}
+            </Button>
+          </form>
+        ) : (
+          <div className="mt-3 text-xs text-muted-foreground italic">
+            View-only access for Managers. Only Admins can create or modify campaigns.
+          </div>
+        )}
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {campaigns.map((c) => (
-            <div key={c.id} className="flex items-center justify-between rounded-xl border bg-background p-3 text-xs">
-              <div className="min-w-0 pr-2">
-                <div className="font-semibold text-foreground truncate">{c.name}</div>
-                <div className="text-muted-foreground truncate">{c.description || "Active Marketing Campaign"}</div>
+          {campaigns.map((c) => {
+            const isAllotted = currentUser?.campaignId === c.id;
+            return (
+              <div key={c.id} className={`flex items-center justify-between rounded-xl border p-3 text-xs ${isAllotted ? "border-primary/50 bg-primary/5" : "bg-background"}`}>
+                <div className="min-w-0 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-foreground truncate">{c.name}</span>
+                    {isAllotted && <Badge className="text-[10px] py-0">Your Allotted Campaign</Badge>}
+                  </div>
+                  <div className="text-muted-foreground truncate">{c.description || "Active Marketing Campaign"}</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant="secondary" className="font-semibold">
+                    ${c.budget.toLocaleString()}
+                  </Badge>
+                  {isAdmin && (
+                    <>
+                      {/* Edit Campaign Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                        onClick={() => {
+                          setEditingCampaign(c);
+                          setEditCampaignName(c.name);
+                          setEditCampaignBudget(String(c.budget));
+                        }}
+                        title="Edit Campaign"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      {/* Delete Campaign Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
+                        onClick={() => handleDeleteCampaign(c.id, c.name)}
+                        title="Delete Campaign"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="secondary" className="font-semibold">
-                  ${c.budget.toLocaleString()}
-                </Badge>
-                {/* Edit Campaign Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
-                  onClick={() => {
-                    setEditingCampaign(c);
-                    setEditCampaignName(c.name);
-                    setEditCampaignBudget(String(c.budget));
-                  }}
-                  title="Edit Campaign"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                {/* Delete Campaign Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
-                  onClick={() => handleDeleteCampaign(c.id, c.name)}
-                  title="Delete Campaign"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -398,62 +414,77 @@ function SettingsPage() {
           </div>
         </div>
 
-        {/* Add Branch Form */}
-        <form onSubmit={handleAddBranch} className="mt-4 flex flex-wrap gap-2">
-          <Input
-            placeholder="Branch Name (e.g. Tamale Branch)..."
-            value={newBranchName}
-            onChange={(e) => setNewBranchName(e.target.value)}
-            className="h-9 w-48 text-xs sm:w-64"
-            required
-          />
-          <Input
-            placeholder="Location (e.g. Northern Region)..."
-            value={newBranchLocation}
-            onChange={(e) => setNewBranchLocation(e.target.value)}
-            className="h-9 w-44 text-xs"
-          />
-          <Button type="submit" size="sm" className="h-9 gap-1.5 cursor-pointer font-semibold" disabled={addingBranch}>
-            <Plus className="h-4 w-4" /> {addingBranch ? "Adding..." : "Add Branch"}
-          </Button>
-        </form>
+        {isAdmin ? (
+          <form onSubmit={handleAddBranch} className="mt-4 flex flex-wrap gap-2">
+            <Input
+              placeholder="Branch Name (e.g. Tamale Branch)..."
+              value={newBranchName}
+              onChange={(e) => setNewBranchName(e.target.value)}
+              className="h-9 w-48 text-xs sm:w-64"
+              required
+            />
+            <Input
+              placeholder="Location (e.g. Northern Region)..."
+              value={newBranchLocation}
+              onChange={(e) => setNewBranchLocation(e.target.value)}
+              className="h-9 w-44 text-xs"
+            />
+            <Button type="submit" size="sm" className="h-9 gap-1.5 cursor-pointer font-semibold" disabled={addingBranch}>
+              <Plus className="h-4 w-4" /> {addingBranch ? "Adding..." : "Add Branch"}
+            </Button>
+          </form>
+        ) : (
+          <div className="mt-3 text-xs text-muted-foreground italic">
+            View-only access for Managers. Only Admins can create or modify branches.
+          </div>
+        )}
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {branches.map((b) => (
-            <div key={b.id} className="flex items-center justify-between rounded-xl border bg-background p-3 text-xs">
-              <div className="min-w-0 pr-2">
-                <div className="font-semibold truncate">{b.name}</div>
-                <div className="text-muted-foreground truncate">{b.location || "Active Regional Branch"}</div>
+          {branches.map((b) => {
+            const isAllotted = currentUser?.branchId === b.id;
+            return (
+              <div key={b.id} className={`flex items-center justify-between rounded-xl border p-3 text-xs ${isAllotted ? "border-primary/50 bg-primary/5" : "bg-background"}`}>
+                <div className="min-w-0 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold truncate">{b.name}</span>
+                    {isAllotted && <Badge className="text-[10px] py-0">Your Allotted Branch</Badge>}
+                  </div>
+                  <div className="text-muted-foreground truncate">{b.location || "Active Regional Branch"}</div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Badge variant="outline">Active</Badge>
+                  {isAdmin && (
+                    <>
+                      {/* Edit Branch Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                        onClick={() => {
+                          setEditingBranch(b);
+                          setEditBranchName(b.name);
+                          setEditBranchLocation(b.location || "");
+                        }}
+                        title="Edit Branch"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      {/* Delete Branch Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
+                        onClick={() => handleDeleteBranch(b.id, b.name)}
+                        title="Delete Branch"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Badge variant="outline">Active</Badge>
-                {/* Edit Branch Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
-                  onClick={() => {
-                    setEditingBranch(b);
-                    setEditBranchName(b.name);
-                    setEditBranchLocation(b.location || "");
-                  }}
-                  title="Edit Branch"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                {/* Delete Branch Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
-                  onClick={() => handleDeleteBranch(b.id, b.name)}
-                  title="Delete Branch"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
