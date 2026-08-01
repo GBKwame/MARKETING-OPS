@@ -1,5 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
+import dns from "dns";
+dns.setDefaultResultOrder("ipv4first");
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -665,6 +667,7 @@ app.post("/api/team/invite", async (req, res) => {
         host: process.env.SMTP_HOST || "smtp.gmail.com",
         port: parseInt(process.env.SMTP_PORT || "587"),
         secure: process.env.SMTP_SECURE === "true",
+        family: 4,
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
