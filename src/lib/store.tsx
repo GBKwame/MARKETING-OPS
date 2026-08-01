@@ -259,15 +259,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ]);
 
       const branchMap = new Map((b || []).map((br: any) => [br.id, br.name]));
+      const campaignMap = new Map((c || []).map((cp: any) => [cp.id, cp.name]));
 
       if (uRes?.user) setCurrentUser(uRes.user);
 
       if (teamRes && Array.isArray(teamRes)) {
         setMembers(teamRes);
       } else if (Array.isArray(m)) {
-        setMembers(m);
+        setMembers(
+          m.map((usr: any) => ({
+            ...usr,
+            branchName: usr.branchName || (usr.branchId ? branchMap.get(usr.branchId) : null) || "Workspace HQ",
+            campaignName: usr.campaignName || (usr.campaignId ? campaignMap.get(usr.campaignId) : null) || "General Campaign",
+          }))
+        );
       }
-      setMembers(m);
       setBranches(b);
       setCampaigns(c);
       setActivities(

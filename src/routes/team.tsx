@@ -446,12 +446,12 @@ function TeamPage() {
 
                     {/* CAMPAIGN NAME */}
                     <TableCell className="px-4 py-3.5 text-xs font-semibold text-foreground">
-                      {m.campaignName || "General / All"}
+                      {m.campaignName || (m.role === "admin" ? "All Campaigns" : "General Campaign")}
                     </TableCell>
 
                     {/* BRANCH NAME */}
                     <TableCell className="px-4 py-3.5 text-xs text-muted-foreground">
-                      {m.branchName || m.branch || "Accra HQ"}
+                      {m.branchName || m.branch || (m.role === "admin" ? "Workspace HQ" : "Default Branch")}
                     </TableCell>
 
                     {/* ROLE */}
