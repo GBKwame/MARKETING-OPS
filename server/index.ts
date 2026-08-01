@@ -675,7 +675,7 @@ app.post("/api/team/invite", async (req, res) => {
         connectionTimeout: 10000,
         greetingTimeout: 10000,
         socketTimeout: 10000,
-      });
+      } as any);
 
       dynamicTransporter.sendMail(mailOptions).then(() => {
         console.log(`✉️ Email successfully sent to ${email} via SMTP.`);
