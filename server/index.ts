@@ -1265,9 +1265,13 @@ app.get("/api/company-links", async (_req, res) => {
   }
 });
 
-// Health check endpoint
+// Health check endpoints for Railway / cloud deployments
+app.get("/health", (_req, res) => {
+  return res.status(200).json({ status: "ok", timestamp: new Date() });
+});
+
 app.get("/api/health", (_req, res) => {
-  return res.json({ status: "ok", timestamp: new Date() });
+  return res.status(200).json({ status: "ok", timestamp: new Date() });
 });
 
 // Serve built frontend assets in production
@@ -1316,8 +1320,9 @@ async function initDbSchema() {
   }
 }
 
-const server = app.listen(PORT, async () => {
-  console.log(`🚀 Node.js Express Backend running on http://localhost:${PORT}`);
+const HOST = "0.0.0.0";
+const server = app.listen(Number(PORT), HOST, async () => {
+  console.log(`🚀 Node.js Express Backend running on http://${HOST}:${PORT}`);
   await initDbSchema();
 });
 
