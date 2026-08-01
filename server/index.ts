@@ -529,6 +529,7 @@ app.get("/api/team", async (req, res) => {
         campaignName: cObj?.name || (u.role === "admin" ? "All Campaigns" : "General Campaign"),
         supervisorId: u.supervisorId,
         avatar: u.avatar || u.name.substring(0, 2).toUpperCase(),
+        picture: u.picture || null,
         createdAt: u.createdAt,
       };
     });

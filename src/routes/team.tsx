@@ -21,7 +21,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -421,6 +421,9 @@ function TeamPage() {
                     <TableCell className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9 border shadow-2xs">
+                          {m.picture ? (
+                            <AvatarImage src={m.picture} alt={m.name} />
+                          ) : null}
                           <AvatarFallback className="font-bold text-xs bg-primary/10 text-primary">
                             {m.avatar || m.name.substring(0, 2).toUpperCase()}
                           </AvatarFallback>
