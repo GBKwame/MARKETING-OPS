@@ -671,6 +671,7 @@ app.post("/api/team/invite", async (req, res) => {
         port: smtpPort,
         secure: isSecure,
         family: 4,
+        lookup: (hostname: string, opts: any, cb: any) => dns.lookup(hostname, { family: 4 }, cb),
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
