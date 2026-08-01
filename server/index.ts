@@ -659,20 +659,27 @@ app.post("/api/team/invite", async (req, res) => {
       `,
     };
 
-    let emailSent = true;
-    const dynamicTransporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: parseInt(process.env.SMTP_PORT || "587"),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
-    dynamicTransporter.sendMail(mailOptions).catch((e: any) => {
-      console.log("SMTP Info Note (Background dispatch):", e.message);
-    });
+    let emailSent = false;
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        const dynamicTransporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || "smtp.gmail.com",
+          port: parseInt(process.env.SMTP_PORT || "587"),
+          secure: process.env.SMTP_SECURE === "true",
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+        await dynamicTransporter.sendMail(mailOptions);
+        emailSent = true;
+        console.log(`✉️ Email successfully sent to ${email} via SMTP.`);
+      } catch (smtpErr: any) {
+        console.error("❌ SMTP Delivery Error:", smtpErr.message || smtpErr);
+      }
+    } else {
+      console.warn("⚠️ SMTP credentials (SMTP_USER / SMTP_PASS) not configured in environment variables.");
+    }
 
     // Build WhatsApp URL
     const rawPhone = (phone || "").replace(/[^0-9]/g, "");
