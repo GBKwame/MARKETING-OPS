@@ -650,10 +650,10 @@ app.post("/api/team/invite", async (req, res) => {
           <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Branch:</strong> ${branchName}</p>
             <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Campaign:</strong> ${campaignName}</p>
-            <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Default Password:</strong> Password123!</p>
+            <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Access:</strong> Sign in with Google or create your own password</p>
           </div>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="${inviteLink}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">Accept & Sign In</a>
+            <a href="${inviteLink}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">Accept & Join Workspace</a>
           </div>
         </div>
       `,
@@ -676,7 +676,7 @@ app.post("/api/team/invite", async (req, res) => {
 
     // Build WhatsApp URL
     const rawPhone = (phone || "").replace(/[^0-9]/g, "");
-    const waText = `Hi ${name}, you've been invited by ${authUser.name} to join MarketOps as ${targetRole.toUpperCase()} for ${branchName} / ${campaignName}. Log in here: ${inviteLink} (Password: Password123!)`;
+    const waText = `Hi ${name}, you've been invited by ${authUser.name} to join MarketOps as ${targetRole.toUpperCase()} for ${branchName} / ${campaignName}. Join workspace here: ${inviteLink}`;
     const whatsappUrl = rawPhone
       ? `https://wa.me/${rawPhone}?text=${encodeURIComponent(waText)}`
       : `https://wa.me/?text=${encodeURIComponent(waText)}`;
