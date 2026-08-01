@@ -1294,6 +1294,43 @@ if (fs.existsSync(distPath)) {
 async function initDbSchema() {
   try {
     await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        budget INT NOT NULL DEFAULT 0,
+        status ENUM('active', 'paused', 'completed') NOT NULL DEFAULT 'active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS branches (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        location VARCHAR(255),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        role ENUM('admin', 'manager', 'marketer') NOT NULL DEFAULT 'marketer',
+        branch_id VARCHAR(64),
+        campaign_id VARCHAR(64),
+        supervisor_id VARCHAR(64),
+        avatar VARCHAR(16),
+        picture TEXT,
+        invitation_status ENUM('pending', 'accepted', 'revoked') NOT NULL DEFAULT 'accepted',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS invitations (
         id VARCHAR(64) PRIMARY KEY,
         email VARCHAR(255) NOT NULL,
@@ -1307,6 +1344,114 @@ async function initDbSchema() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS activities (
+        id VARCHAR(64) PRIMARY KEY,
+        campaign VARCHAR(255) NOT NULL,
+        channel VARCHAR(128) NOT NULL,
+        approach VARCHAR(128) NOT NULL,
+        destination VARCHAR(255) NOT NULL,
+        content TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        member_id VARCHAR(64) NOT NULL,
+        branch_id VARCHAR(64),
+        date DATETIME NOT NULL,
+        proof_url LONGTEXT NOT NULL,
+        published_link TEXT,
+        cost INT NOT NULL DEFAULT 0,
+        leads_count INT NOT NULL DEFAULT 0,
+        clients_count INT NOT NULL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS todos (
+        id VARCHAR(64) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        assignee_id VARCHAR(64) NOT NULL,
+        created_by_id VARCHAR(64) NOT NULL,
+        due_date DATETIME NOT NULL,
+        status ENUM('todo', 'in_progress', 'done') NOT NULL DEFAULT 'todo',
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS approvals (
+        id VARCHAR(64) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        type ENUM('flyer', 'video', 'image', 'text', 'other') NOT NULL DEFAULT 'image',
+        submitted_by_id VARCHAR(64) NOT NULL,
+        reviewer_id VARCHAR(64),
+        preview_url LONGTEXT NOT NULL,
+        description TEXT NOT NULL,
+        status ENUM('draft', 'pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+        submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        reviewed_at DATETIME
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS assets (
+        id VARCHAR(64) PRIMARY KEY,
+        approval_id VARCHAR(64),
+        title VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        type ENUM('flyer', 'video', 'image', 'text', 'other') NOT NULL DEFAULT 'image',
+        preview_url LONGTEXT NOT NULL,
+        category VARCHAR(64) NOT NULL DEFAULT 'General',
+        version VARCHAR(32) NOT NULL DEFAULT 'v1.0',
+        body TEXT,
+        file_url LONGTEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS leads (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        contact VARCHAR(128) NOT NULL,
+        campaign VARCHAR(255),
+        channel VARCHAR(128),
+        approach VARCHAR(128),
+        destination VARCHAR(255),
+        activity_id VARCHAR(64),
+        assigned_to_id VARCHAR(64),
+        branch_id VARCHAR(64),
+        status ENUM('new', 'contacted', 'qualified', 'client') NOT NULL DEFAULT 'new',
+        value INT NOT NULL DEFAULT 0,
+        notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS company_links (
+        id VARCHAR(64) PRIMARY KEY,
+        platform VARCHAR(64) NOT NULL UNIQUE,
+        label VARCHAR(128) NOT NULL,
+        url TEXT,
+        handle VARCHAR(128),
+        category VARCHAR(64) NOT NULL
+      )
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id VARCHAR(64) PRIMARY KEY,
+        user_id VARCHAR(64) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        body TEXT NOT NULL,
+        read BOOLEAN NOT NULL DEFAULT FALSE,
+        kind ENUM('activity', 'todo', 'approval') NOT NULL DEFAULT 'activity',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     try { await db.execute(sql`ALTER TABLE leads ADD COLUMN campaign VARCHAR(255)`); } catch {}
     try { await db.execute(sql`ALTER TABLE leads ADD COLUMN channel VARCHAR(128)`); } catch {}
     try { await db.execute(sql`ALTER TABLE leads ADD COLUMN approach VARCHAR(128)`); } catch {}
@@ -1315,8 +1460,9 @@ async function initDbSchema() {
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN campaign_id VARCHAR(64)`); } catch {}
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN picture TEXT`); } catch {}
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN invitation_status ENUM('pending', 'accepted', 'revoked') DEFAULT 'accepted'`); } catch {}
+    console.log("✨ All MySQL tables initialized successfully!");
   } catch (e: any) {
-    console.log("DB Init Schema Note:", e.message);
+    console.error("DB Init Schema Note:", e.message);
   }
 }
 
