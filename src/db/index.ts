@@ -15,13 +15,13 @@ function loadEnv() {
           const [key, ...valParts] = trimmed.split("=");
           const val = valParts.join("=").replace(/^["']|["']$/g, "").trim();
           const k = key.trim();
-          if (k) {
+          if (k && (!process.env[k] || process.env[k] === "")) {
             process.env[k] = val;
           }
         }
       }
     }
-  } catch { }
+  } catch {}
 }
 
 type DB = MySql2Database<typeof schema>;
@@ -32,7 +32,7 @@ let drizzleInstance: DB | undefined;
 
 export function getDb(): DB {
   loadEnv();
-  const uri = process.env.DATABASE_URL || "mysql://root:password@127.0.0.1:3306/marketing_pulse";
+  const uri = process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQLURL || "mysql://root:password@127.0.0.1:3306/marketing_pulse";
 
   if (!pool || activeUri !== uri) {
     if (pool) {

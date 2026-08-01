@@ -16,7 +16,7 @@ import {
   companyLinks,
   notifications,
 } from "../src/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { jwtDecode } from "jwt-decode";
 import {
@@ -1287,8 +1287,38 @@ if (fs.existsSync(distPath)) {
   });
 }
 
-const server = app.listen(PORT, () => {
+async function initDbSchema() {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS invitations (
+        id VARCHAR(64) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(128),
+        role ENUM('admin', 'manager', 'marketer') NOT NULL,
+        campaign_id VARCHAR(64),
+        branch_id VARCHAR(64),
+        invited_by_id VARCHAR(64) NOT NULL,
+        status ENUM('pending', 'accepted', 'revoked') NOT NULL DEFAULT 'pending',
+        token VARCHAR(128) NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN campaign VARCHAR(255)`); } catch {}
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN channel VARCHAR(128)`); } catch {}
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN approach VARCHAR(128)`); } catch {}
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN destination VARCHAR(255)`); } catch {}
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN branch_id VARCHAR(64)`); } catch {}
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN campaign_id VARCHAR(64)`); } catch {}
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN picture TEXT`); } catch {}
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN invitation_status ENUM('pending', 'accepted', 'revoked') DEFAULT 'accepted'`); } catch {}
+  } catch (e: any) {
+    console.log("DB Init Schema Note:", e.message);
+  }
+}
+
+const server = app.listen(PORT, async () => {
   console.log(`🚀 Node.js Express Backend running on http://localhost:${PORT}`);
+  await initDbSchema();
 });
 
 server.on("error", (err: any) => {
