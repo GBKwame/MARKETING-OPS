@@ -309,21 +309,16 @@ function SettingsPage() {
         </div>
       </section>
 
-      {/* Campaign Management (Admin & Manager) */}
+      {/* Campaign Management */}
       <section className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Megaphone className="h-4 w-4 text-primary" />
-              <span>Manage Campaigns</span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Create, edit, and configure active marketing campaigns and budget allocations.
-            </p>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Megaphone className="h-4 w-4 text-primary" />
+            <span>Manage Campaigns</span>
           </div>
         </div>
 
-        {isAdmin ? (
+        {isAdmin && (
           <form onSubmit={handleAddCampaign} className="mt-4 flex flex-wrap gap-2">
             <Input
               placeholder="Campaign Name..."
@@ -343,10 +338,6 @@ function SettingsPage() {
               <Plus className="h-4 w-4" /> {addingCampaign ? "Adding..." : "Add Campaign"}
             </Button>
           </form>
-        ) : (
-          <div className="mt-3 text-xs text-muted-foreground italic">
-            View-only access for Managers. Only Admins can create or modify campaigns.
-          </div>
         )}
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -355,11 +346,8 @@ function SettingsPage() {
             return (
               <div key={c.id} className={`flex items-center justify-between rounded-xl border p-3 text-xs ${isAllotted ? "border-primary/50 bg-primary/5" : "bg-background"}`}>
                 <div className="min-w-0 pr-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-foreground truncate">{c.name}</span>
-                    {isAllotted && <Badge className="text-[10px] py-0">Your Allotted Campaign</Badge>}
-                  </div>
-                  <div className="text-muted-foreground truncate">{c.description || "Active Marketing Campaign"}</div>
+                  <div className="font-semibold text-foreground truncate">{c.name}</div>
+                  <div className="text-muted-foreground truncate">{c.description || "Active Campaign"}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="secondary" className="font-semibold">
@@ -400,21 +388,16 @@ function SettingsPage() {
         </div>
       </section>
 
-      {/* Branch Management (Admin & Manager) */}
+      {/* Branch Management */}
       <section className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Building className="h-4 w-4 text-primary" />
-              <span>Operational Branches</span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Active regional branches stored directly in MySQL.
-            </p>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Building className="h-4 w-4 text-primary" />
+            <span>Operational Branches</span>
           </div>
         </div>
 
-        {isAdmin ? (
+        {isAdmin && (
           <form onSubmit={handleAddBranch} className="mt-4 flex flex-wrap gap-2">
             <Input
               placeholder="Branch Name (e.g. Tamale Branch)..."
@@ -433,10 +416,6 @@ function SettingsPage() {
               <Plus className="h-4 w-4" /> {addingBranch ? "Adding..." : "Add Branch"}
             </Button>
           </form>
-        ) : (
-          <div className="mt-3 text-xs text-muted-foreground italic">
-            View-only access for Managers. Only Admins can create or modify branches.
-          </div>
         )}
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -445,10 +424,7 @@ function SettingsPage() {
             return (
               <div key={b.id} className={`flex items-center justify-between rounded-xl border p-3 text-xs ${isAllotted ? "border-primary/50 bg-primary/5" : "bg-background"}`}>
                 <div className="min-w-0 pr-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold truncate">{b.name}</span>
-                    {isAllotted && <Badge className="text-[10px] py-0">Your Allotted Branch</Badge>}
-                  </div>
+                  <div className="font-semibold truncate">{b.name}</div>
                   <div className="text-muted-foreground truncate">{b.location || "Active Regional Branch"}</div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
