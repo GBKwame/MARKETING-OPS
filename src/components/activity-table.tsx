@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import type { Activity } from "@/lib/store";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
+import { ExpandableText } from "@/components/ui/expandable-text";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -549,8 +550,8 @@ export function ActivityTable({
                   )}
 
                   {columnVisibility.content && (
-                    <TableCell className="text-xs max-w-[260px] truncate px-3 py-3" title={a.content}>
-                      {a.content}
+                    <TableCell className="px-3 py-3">
+                      <ExpandableText text={a.content} title="Activity Description & Copy" maxLength={50} />
                     </TableCell>
                   )}
 

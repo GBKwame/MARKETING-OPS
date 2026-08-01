@@ -367,11 +367,12 @@ function LeadsPage() {
 
               <div>
                 <label className="font-semibold text-muted-foreground">COMMENTS / NOTES</label>
-                <Input
+                <textarea
+                  rows={3}
                   placeholder="Additional details, referral info, or prospect notes..."
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="h-9 text-xs rounded-lg mt-1"
+                  className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-xs shadow-2xs focus:border-primary focus:ring-1 focus:ring-primary transition-all mt-1"
                 />
               </div>
             </div>

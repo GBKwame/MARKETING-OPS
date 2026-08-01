@@ -23,6 +23,7 @@ import { format, isWithinInterval, startOfDay, endOfDay, subDays } from "date-fn
 import type { Lead } from "@/lib/store";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
+import { ExpandableText } from "@/components/ui/expandable-text";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -58,14 +59,14 @@ export interface LeadColumnConfig {
 
 export const ALL_LEAD_COLUMNS: LeadColumnConfig[] = [
   { key: "campaign", label: "Campaign", defaultVisible: true, filterable: true },
+  { key: "name", label: "Name", defaultVisible: true, filterable: false },
+  { key: "contact", label: "Contact", defaultVisible: true, filterable: false },
   { key: "channel", label: "Channel", defaultVisible: true, filterable: true },
   { key: "approach", label: "Approach", defaultVisible: true, filterable: true },
   { key: "destination", label: "Destination", defaultVisible: true, filterable: true },
   { key: "member", label: "Team Member", defaultVisible: true, filterable: true },
   { key: "branch", label: "Branch", defaultVisible: true, filterable: true },
   { key: "date", label: "Date", defaultVisible: true, filterable: true },
-  { key: "name", label: "Name", defaultVisible: true, filterable: false },
-  { key: "contact", label: "Contact", defaultVisible: true, filterable: false },
   { key: "comments", label: "Comments", defaultVisible: true, filterable: false },
 ];
 
@@ -401,6 +402,20 @@ export function LeadsTable({
                 </TableHead>
               )}
 
+              {/* Name */}
+              {columnVisibility.name && (
+                <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                  Name
+                </TableHead>
+              )}
+
+              {/* Contact */}
+              {columnVisibility.contact && (
+                <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                  Contact
+                </TableHead>
+              )}
+
               {/* Channel */}
               {columnVisibility.channel && (
                 <TableHead className="min-w-[120px]">
@@ -475,20 +490,6 @@ export function LeadsTable({
                 </TableHead>
               )}
 
-              {/* Name */}
-              {columnVisibility.name && (
-                <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
-                  Name
-                </TableHead>
-              )}
-
-              {/* Contact */}
-              {columnVisibility.contact && (
-                <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
-                  Contact
-                </TableHead>
-              )}
-
               {/* Comments */}
               {columnVisibility.comments && (
                 <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
@@ -526,6 +527,12 @@ export function LeadsTable({
                     {columnVisibility.campaign && (
                       <TableCell className="px-3 py-3 text-xs font-semibold">{l.campaign || "General"}</TableCell>
                     )}
+                    {columnVisibility.name && (
+                      <TableCell className="px-3 py-3 text-xs font-bold text-foreground">{l.name}</TableCell>
+                    )}
+                    {columnVisibility.contact && (
+                      <TableCell className="px-3 py-3 text-xs text-muted-foreground">{l.contact}</TableCell>
+                    )}
                     {columnVisibility.channel && (
                       <TableCell className="px-3 py-3 text-xs text-muted-foreground">{l.channel || "Direct"}</TableCell>
                     )}
@@ -546,15 +553,9 @@ export function LeadsTable({
                         {format(new Date(l.createdAt), "dd MMM yyyy")}
                       </TableCell>
                     )}
-                    {columnVisibility.name && (
-                      <TableCell className="px-3 py-3 text-xs font-bold text-foreground">{l.name}</TableCell>
-                    )}
-                    {columnVisibility.contact && (
-                      <TableCell className="px-3 py-3 text-xs text-muted-foreground">{l.contact}</TableCell>
-                    )}
                     {columnVisibility.comments && (
-                      <TableCell className="px-3 py-3 text-xs text-muted-foreground max-w-[200px] truncate" title={l.notes || l.comments || ""}>
-                        {l.notes || l.comments || "—"}
+                      <TableCell className="px-3 py-3">
+                        <ExpandableText text={l.notes || l.comments} title="Lead Remarks & Comments" maxLength={45} />
                       </TableCell>
                     )}
                     <TableCell className="text-right px-3 py-3 whitespace-nowrap">
