@@ -48,16 +48,7 @@ export const Route = createFileRoute("/assets")({
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
-const CATEGORY_OPTIONS = [
-  "Recruitment",
-  "Promotional",
-  "Social Media",
-  "Branding",
-  "Educational",
-  "Event / Campaign",
-  "General",
-  "Other",
-];
+const CATEGORY_OPTIONS = ["General"];
 
 const ASSET_TYPES: { key: Asset["type"]; label: string; icon: any }[] = [
   { key: "image", label: "Image", icon: ImageIcon },
@@ -168,6 +159,27 @@ function AssetsPage() {
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
 
+  // Custom Category State
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("marketops_custom_categories");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [openCategoryModal, setOpenCategoryModal] = useState(false);
+  const [newCatInput, setNewCatInput] = useState("");
+
+  const allCategories = Array.from(
+    new Set([
+      ...CATEGORY_OPTIONS,
+      ...customCategories,
+      ...assets.map((a) => a.category).filter((c): c is string => Boolean(c)),
+    ])
+  );
+
   const canUpload = currentUser?.role === "admin" || currentUser?.role === "manager";
 
   // Filter assets by Type and Category
@@ -176,6 +188,28 @@ function AssetsPage() {
     const matchesCat = selectedCategory === "all" || (a.category || "General") === selectedCategory;
     return matchesTab && matchesCat;
   });
+
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newCatInput.trim();
+    if (!trimmed) return;
+
+    if (allCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error(`Category "${trimmed}" already exists.`);
+      return;
+    }
+
+    const updated = [...customCategories, trimmed];
+    setCustomCategories(updated);
+    try {
+      localStorage.setItem("marketops_custom_categories", JSON.stringify(updated));
+    } catch {}
+
+    toast.success(`Category "${trimmed}" created successfully!`);
+    setNewCatInput("");
+    setOpenCategoryModal(false);
+    setCategorySelect(trimmed);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -231,6 +265,14 @@ function AssetsPage() {
       categorySelect === "Other"
         ? customCategory.trim() || "Other"
         : categorySelect;
+
+    if (finalCategory && !allCategories.includes(finalCategory)) {
+      const updated = [...customCategories, finalCategory];
+      setCustomCategories(updated);
+      try {
+        localStorage.setItem("marketops_custom_categories", JSON.stringify(updated));
+      } catch {}
+    }
 
     setSubmitting(true);
     try {
@@ -336,16 +378,26 @@ function AssetsPage() {
         description="Approved, company-owned marketing materials."
         actions={
           canUpload ? (
-            <Button
-              size="sm"
-              className="gap-1.5 cursor-pointer font-semibold shadow-sm"
-              onClick={() => {
-                resetForm();
-                setOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" /> Upload asset
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 cursor-pointer font-semibold shadow-xs"
+                onClick={() => setOpenCategoryModal(true)}
+              >
+                <Plus className="h-4 w-4" /> Add Category
+              </Button>
+              <Button
+                size="sm"
+                className="gap-1.5 cursor-pointer font-semibold shadow-xs"
+                onClick={() => {
+                  resetForm();
+                  setOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4" /> Upload asset
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -373,7 +425,7 @@ function AssetsPage() {
             className="h-9 rounded-xl border border-input bg-card px-3 text-xs font-semibold shadow-xs focus:border-primary focus:outline-hidden cursor-pointer"
           >
             <option value="all">All Categories</option>
-            {CATEGORY_OPTIONS.map((c) => (
+            {allCategories.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -682,20 +734,22 @@ function AssetsPage() {
                   <select
                     value={categorySelect}
                     onChange={(e) => setCategorySelect(e.target.value)}
-                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer font-medium"
                   >
-                    {CATEGORY_OPTIONS.map((c) => (
+                    {allCategories.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
                     ))}
+                    <option value="Other">+ Create New Category...</option>
                   </select>
                   {categorySelect === "Other" && (
                     <Input
-                      placeholder="Enter custom category..."
+                      placeholder="Enter custom category name..."
                       value={customCategory}
                       onChange={(e) => setCustomCategory(e.target.value)}
                       className="mt-1.5 h-9 text-xs"
+                      autoFocus
                     />
                   )}
                 </div>
@@ -862,6 +916,41 @@ function AssetsPage() {
               </Button>
               <Button type="submit" disabled={submitting}>
                 {submitting ? "Uploading..." : "Save Asset"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Category Modal (Admins & Managers) */}
+      <Dialog open={openCategoryModal} onOpenChange={setOpenCategoryModal}>
+        <DialogContent className="sm:max-w-[420px] rounded-2xl p-6">
+          <form onSubmit={handleAddCategory}>
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" /> Create New Asset Category
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-2 text-xs">
+              <label className="font-semibold text-muted-foreground">Category Name *</label>
+              <Input
+                required
+                placeholder="e.g. Q3 Campaigns, Webinars, Brochures..."
+                value={newCatInput}
+                onChange={(e) => setNewCatInput(e.target.value)}
+                className="h-9 text-xs"
+                autoFocus
+              />
+              <p className="text-[11px] text-muted-foreground">
+                This category will be available in the dropdown for all Admins and Managers when uploading marketing assets.
+              </p>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" size="sm" type="button" onClick={() => setOpenCategoryModal(false)} className="rounded-xl">
+                Cancel
+              </Button>
+              <Button size="sm" type="submit" className="rounded-xl font-bold px-4">
+                Save Category
               </Button>
             </DialogFooter>
           </form>
