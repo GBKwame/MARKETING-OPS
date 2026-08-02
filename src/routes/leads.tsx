@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { Plus, Pencil, Trash2, UserCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, UserCheck, Phone, Mail, Share2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { LeadsTable } from "@/components/leads-table";
 import {
   Table,
@@ -61,6 +62,34 @@ const DESTINATION_PRESETS = [
   "Other",
 ];
 
+function parseContactString(contactStr: string) {
+  let phone = "";
+  let email = "";
+  let social = "";
+
+  if (!contactStr) return { phone, email, social };
+
+  const parts = contactStr.split(/\s*\|\s*/);
+  parts.forEach((p) => {
+    const clean = p.trim();
+    if (clean.startsWith("📞") || clean.match(/^[+0-9\s-]{6,}$/)) {
+      phone = clean.replace(/^📞\s*/, "");
+    } else if (clean.startsWith("✉️") || (clean.includes("@") && clean.includes("."))) {
+      email = clean.replace(/^✉️\s*/, "");
+    } else if (clean.startsWith("🌐") || clean.startsWith("@") || clean.includes("instagram") || clean.includes("facebook")) {
+      social = clean.replace(/^🌐\s*/, "");
+    } else if (!phone) {
+      phone = clean;
+    } else if (!email) {
+      email = clean;
+    } else {
+      social = clean;
+    }
+  });
+
+  return { phone, email, social };
+}
+
 function LeadsPage() {
   const { currentUser, leads, campaigns, members, branches, createLead, updateLead, deleteLead, memberById } = useStore();
 
@@ -73,6 +102,12 @@ function LeadsPage() {
   const campaignOptions = campaigns.map((c) => c.name);
   const defaultMember = members[0]?.id || "u-admin";
   const defaultBranch = branches[0]?.id || "";
+
+  // Dynamic Contact State
+  const [contactType, setContactType] = useState<"phone" | "email" | "social">("phone");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+  const [socialInput, setSocialInput] = useState("");
 
   // Dropdown & Custom Text State
   const [approachSelect, setApproachSelect] = useState("");
@@ -101,6 +136,10 @@ function LeadsPage() {
       branchId: defaultBranch,
       notes: "",
     });
+    setContactType("phone");
+    setPhoneInput("");
+    setEmailInput("");
+    setSocialInput("");
     setApproachSelect("");
     setCustomApproach("");
     setDestinationSelect("");
@@ -118,6 +157,16 @@ function LeadsPage() {
       branchId: l.branchId || defaultBranch,
       notes: l.notes || "",
     });
+
+    const parsed = parseContactString(l.contact || "");
+    setPhoneInput(parsed.phone);
+    setEmailInput(parsed.email);
+    setSocialInput(parsed.social);
+
+    if (parsed.phone) setContactType("phone");
+    else if (parsed.email) setContactType("email");
+    else if (parsed.social) setContactType("social");
+    else setContactType("phone");
 
     if (APPROACH_PRESETS.includes(l.approach as any)) {
       setApproachSelect(l.approach || "");
@@ -140,11 +189,26 @@ function LeadsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.contact.trim()) {
-      toast.error("Lead name and contact are required.");
+    if (!form.name.trim()) {
+      toast.error("Lead name is required.");
       return;
     }
 
+    const hasPhone = phoneInput.trim().length > 0;
+    const hasEmail = emailInput.trim().length > 0;
+    const hasSocial = socialInput.trim().length > 0;
+
+    if (!hasPhone && !hasEmail && !hasSocial) {
+      toast.error("Please provide at least one contact method (Phone, Email, or Social Media).");
+      return;
+    }
+
+    const contactParts: string[] = [];
+    if (hasPhone) contactParts.push(`📞 ${phoneInput.trim()}`);
+    if (hasEmail) contactParts.push(`✉️ ${emailInput.trim()}`);
+    if (hasSocial) contactParts.push(`🌐 ${socialInput.trim()}`);
+
+    const finalContact = contactParts.join(" | ");
     const finalApproach = approachSelect === "Other" ? customApproach.trim() : approachSelect;
     const finalDestination = destinationSelect === "Other" ? customDestination.trim() : destinationSelect;
 
@@ -152,7 +216,7 @@ function LeadsPage() {
     try {
       const payload = {
         name: form.name.trim(),
-        contact: form.contact.trim(),
+        contact: finalContact,
         campaign: form.campaign || campaignOptions[0] || "General",
         channel: form.channel || CHANNELS[0] || "Direct Outreach",
         approach: finalApproach || "Organic Post",
@@ -238,27 +302,117 @@ function LeadsPage() {
             </div>
 
             <div className="space-y-4 p-6 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-muted-foreground">NAME *</label>
-                  <Input
-                    required
-                    placeholder="Full name (e.g. Adjoa Mensah)"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="h-9 text-xs rounded-lg mt-1"
-                  />
+              {/* Name Field */}
+              <div>
+                <label className="font-semibold text-muted-foreground uppercase text-[11px]">LEAD NAME *</label>
+                <Input
+                  required
+                  placeholder="Full name (e.g. Adjoa Mensah)"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="h-9 text-xs rounded-lg mt-1"
+                />
+              </div>
+
+              {/* Dynamic Premium Contact Selector & Input Section */}
+              <div className="rounded-xl border bg-muted/20 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                    <span>Contact Methods * (At least 1 required)</span>
+                  </label>
+                  {/* Contact Mode Selector Pills */}
+                  <div className="flex rounded-lg border bg-background p-0.5 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setContactType("phone")}
+                      className={cn(
+                        "flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer",
+                        contactType === "phone"
+                          ? "bg-primary text-primary-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Phone className="h-3 w-3" /> Phone
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContactType("email")}
+                      className={cn(
+                        "flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer",
+                        contactType === "email"
+                          ? "bg-primary text-primary-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Mail className="h-3 w-3" /> Email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContactType("social")}
+                      className={cn(
+                        "flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer",
+                        contactType === "social"
+                          ? "bg-primary text-primary-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Share2 className="h-3 w-3" /> Social
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="font-semibold text-muted-foreground">CONTACT *</label>
-                  <Input
-                    required
-                    placeholder="Phone or Email (+233...)"
-                    value={form.contact}
-                    onChange={(e) => setForm({ ...form, contact: e.target.value })}
-                    className="h-9 text-xs rounded-lg mt-1"
-                  />
-                </div>
+
+                {/* Phone Input Mode */}
+                {contactType === "phone" && (
+                  <div>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="Enter phone number (e.g. +233 24 123 4567)..."
+                        value={phoneInput}
+                        onChange={(e) => {
+                          const cleaned = e.target.value.replace(/[^0-9+\s-]/g, "");
+                          setPhoneInput(cleaned);
+                        }}
+                        className="h-9 text-xs pl-9 rounded-lg bg-background font-mono"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">Accepts digits, country code (+) & spaces only.</p>
+                  </div>
+                )}
+
+                {/* Email Input Mode */}
+                {contactType === "email" && (
+                  <div>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        placeholder="Enter email address (e.g. lead@company.com)..."
+                        value={emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        className="h-9 text-xs pl-9 rounded-lg bg-background"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Social Media Mode */}
+                {contactType === "social" && (
+                  <div>
+                    <div className="relative">
+                      <Share2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Enter social handle or link (e.g. @instagram, fb.com/name)..."
+                        value={socialInput}
+                        onChange={(e) => setSocialInput(e.target.value)}
+                        className="h-9 text-xs pl-9 rounded-lg bg-background"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

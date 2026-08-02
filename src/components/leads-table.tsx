@@ -531,7 +531,9 @@ export function LeadsTable({
                       <TableCell className="px-3 py-3 text-xs font-bold text-foreground">{l.name}</TableCell>
                     )}
                     {columnVisibility.contact && (
-                      <TableCell className="px-3 py-3 text-xs text-muted-foreground">{l.contact}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">{l.contact || "—"}</span>
+                      </TableCell>
                     )}
                     {columnVisibility.channel && (
                       <TableCell className="px-3 py-3 text-xs text-muted-foreground">{l.channel || "Direct"}</TableCell>
