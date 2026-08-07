@@ -826,7 +826,7 @@ function TeamPage() {
 
             <div className="space-y-4 py-4 text-xs">
               <p className="text-muted-foreground">
-                Promote <strong className="text-foreground">{promotingMember?.name}</strong> ({promotingMember?.email}) to a higher privilege level.
+                Change <strong className="text-foreground">{promotingMember?.name}</strong> ({promotingMember?.email}) Role.
               </p>
 
               <div>
