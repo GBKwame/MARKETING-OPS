@@ -76,6 +76,7 @@ export interface Activity {
   content: string;
   summary: string;
   memberId: string;
+  memberName?: string;
   branch: string;
   branchId?: string;
   date: string;
@@ -283,6 +284,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           leads: a.leadsCount ?? a.leads ?? 0,
           clients: a.clientsCount ?? a.clients ?? 0,
           branch: a.branch || (a.branchId ? branchMap.get(a.branchId) : null) || "Accra HQ",
+          memberName: a.memberName || null,
         }))
       );
       setTodos(t);

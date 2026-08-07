@@ -556,7 +556,7 @@ export function ActivityTable({
                   )}
 
                   {columnVisibility.member && (
-                    <TableCell className="text-xs font-medium px-3 py-3">{m?.name ?? a.memberId}</TableCell>
+                    <TableCell className="text-xs font-medium px-3 py-3">{a.memberName || m?.name || a.memberId}</TableCell>
                   )}
 
                   {columnVisibility.branch && (

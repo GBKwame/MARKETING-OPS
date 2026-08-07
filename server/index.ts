@@ -833,14 +833,17 @@ app.get("/api/activities", async (_req, res) => {
       .select({
         activity: activities,
         branchName: branches.name,
+        memberName: users.name,
       })
       .from(activities)
       .leftJoin(branches, eq(activities.branchId, branches.id))
+      .leftJoin(users, eq(activities.memberId, users.id))
       .orderBy(desc(activities.date));
 
     const formatted = rows.map((r) => ({
       ...r.activity,
       branch: r.branchName || "Accra HQ",
+      memberName: r.memberName || "Team Member",
     }));
 
     return res.json(formatted);
