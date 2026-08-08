@@ -17,8 +17,9 @@ import {
   leads,
   companyLinks,
   notifications,
+  organizations,
 } from "../src/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { jwtDecode } from "jwt-decode";
 import {
@@ -37,6 +38,13 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
+async function isOrgSuspended(organizationId?: string | null, role?: string): Promise<boolean> {
+  if (role === "super_admin") return false;
+  if (!organizationId) return false;
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, organizationId));
+  return org?.status === "suspended";
+}
+
 // Helper for session extraction
 async function getAuthUser(req: express.Request) {
   const cookieHeader = req.headers.cookie || null;
@@ -46,7 +54,27 @@ async function getAuthUser(req: express.Request) {
   if (!payload?.userId) return null;
 
   const [u] = await db.select().from(users).where(eq(users.id, payload.userId));
-  return u || null;
+  if (!u) return null;
+
+  // Check if organization is suspended (super_admin bypasses)
+  if (u.role !== "super_admin" && u.organizationId) {
+    const suspended = await isOrgSuspended(u.organizationId, u.role);
+    if (suspended) return null;
+  }
+
+  return u;
+}
+
+async function formatUserWithOrg(u: any) {
+  if (!u) return null;
+  const { passwordHash: _, ...cleaned } = u;
+  const targetOrgId = u.organizationId || "org-default";
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, targetOrgId));
+  return {
+    ...cleaned,
+    organizationName: org?.name || "Carezza Growth Team",
+    organizationSlug: org?.slug || "carezza",
+  };
 }
 
 // ------------------------------------------------------------------
@@ -70,6 +98,13 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // Check if organization is suspended
+    if (await isOrgSuspended(u.organizationId, u.role)) {
+      return res.status(403).json({
+        error: "This organization workspace has been suspended by the platform administrator. Please contact support.",
+      });
+    }
+
     // Auto-accept invitation if pending
     if (u.invitationStatus === "pending") {
       await db.update(users).set({ invitationStatus: "accepted" }).where(eq(users.id, u.id));
@@ -88,8 +123,8 @@ app.post("/api/auth/login", async (req, res) => {
     const cookieHeader = buildSessionCookie(token);
     res.setHeader("Set-Cookie", cookieHeader);
 
-    const { passwordHash: _, ...userWithoutPass } = u;
-    return res.json({ user: userWithoutPass, token });
+    const formattedUser = await formatUserWithOrg(u);
+    return res.json({ user: formattedUser, token });
   } catch (err: any) {
     console.error("Login error:", err);
     return res.status(500).json({ error: "Internal server error" });
@@ -118,21 +153,35 @@ app.post("/api/auth/google", async (req, res) => {
       return res.status(400).json({ error: "Valid Google email is required." });
     }
 
+    const { token: inviteToken, orgId } = req.body || {};
     const cleanEmail = email.toLowerCase().trim();
     let [u] = await db.select().from(users).where(eq(users.email, cleanEmail));
+
+    if (u && (await isOrgSuspended(u.organizationId, u.role))) {
+      return res.status(403).json({
+        error: "This organization workspace has been suspended by the platform administrator. Please contact support.",
+      });
+    }
+
+    // Look up invitation by token first, then by email
+    let [inv] = inviteToken
+      ? await db.select().from(invitations).where(eq(invitations.token, inviteToken))
+      : [];
+    if (!inv && cleanEmail) {
+      [inv] = await db.select().from(invitations).where(eq(invitations.email, cleanEmail));
+    }
+
+    const assignedRole = inv?.role || (orgId ? "admin" : "marketer");
+    const assignedOrgId = inv?.organizationId || orgId || "org-default";
+    const assignedBranchId = inv?.branchId || null;
+    const assignedCampaignId = inv?.campaignId || null;
+    const assignedSupervisorId = inv?.invitedById || null;
 
     if (!u) {
       // Check if this is the very first user in the entire database
       const allUsers = await db.select().from(users);
       const isFirstUser = allUsers.length === 0;
-
-      // Check invitations table for auto-join
-      const [inv] = await db.select().from(invitations).where(eq(invitations.email, cleanEmail));
-
-      const assignedRole = inv?.role || (isFirstUser ? "admin" : "marketer");
-      const assignedBranchId = inv?.branchId || null;
-      const assignedCampaignId = inv?.campaignId || null;
-      const assignedSupervisorId = inv?.invitedById || null;
+      const finalRole = isFirstUser ? "admin" : assignedRole;
 
       const userId = "u-" + Date.now();
       const userName = name || email.split("@")[0];
@@ -141,10 +190,11 @@ app.post("/api/auth/google", async (req, res) => {
 
       const newUser = {
         id: userId,
+        organizationId: assignedOrgId,
         name: userName,
         email: cleanEmail,
         passwordHash,
-        role: assignedRole,
+        role: finalRole,
         branchId: assignedBranchId,
         campaignId: assignedCampaignId,
         supervisorId: assignedSupervisorId,
@@ -157,20 +207,34 @@ app.post("/api/auth/google", async (req, res) => {
       await db.insert(users).values(newUser);
       if (inv) {
         await db.update(invitations).set({ status: "accepted" }).where(eq(invitations.id, inv.id));
+        if (inv.role === "admin") {
+          await db.update(organizations).set({ ownerEmail: cleanEmail, ownerName: userName }).where(eq(organizations.id, inv.organizationId));
+        }
       }
       [u] = await db.select().from(users).where(eq(users.id, userId));
     } else {
-      // Update name and picture if provided
+      // Update name, picture, role, and organizationId if accepting an invite
       const updateData: any = {};
       if (picture) updateData.picture = picture;
       if (name && (!u.name || u.name === u.email.split("@")[0])) updateData.name = name;
       if (u.invitationStatus === "pending") updateData.invitationStatus = "accepted";
 
+      if (inv) {
+        updateData.role = inv.role;
+        updateData.organizationId = inv.organizationId;
+        if (inv.branchId) updateData.branchId = inv.branchId;
+        if (inv.campaignId) updateData.campaignId = inv.campaignId;
+        await db.update(invitations).set({ status: "accepted" }).where(eq(invitations.id, inv.id));
+        if (inv.role === "admin") {
+          await db.update(organizations).set({ ownerEmail: cleanEmail, ownerName: u.name || name || cleanEmail }).where(eq(organizations.id, inv.organizationId));
+        }
+      } else if (orgId && u.organizationId === "org-default") {
+        updateData.organizationId = orgId;
+        updateData.role = "admin";
+      }
+
       if (Object.keys(updateData).length > 0) {
         await db.update(users).set(updateData).where(eq(users.id, u.id));
-        if (u.invitationStatus === "pending") {
-          await db.update(invitations).set({ status: "accepted" }).where(eq(invitations.email, cleanEmail));
-        }
         [u] = await db.select().from(users).where(eq(users.id, u.id));
       }
     }
@@ -184,8 +248,8 @@ app.post("/api/auth/google", async (req, res) => {
     });
 
     res.setHeader("Set-Cookie", buildSessionCookie(sessionToken));
-    const { passwordHash: _, ...cleaned } = u;
-    return res.json({ user: cleaned, token: sessionToken });
+    const formattedUser = await formatUserWithOrg(u);
+    return res.json({ user: formattedUser, token: sessionToken });
   } catch (err: any) {
     console.error("Google auth error:", err);
     return res.status(500).json({ error: err.message || "Failed to authenticate with Google." });
@@ -194,7 +258,7 @@ app.post("/api/auth/google", async (req, res) => {
 
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { name, email, password, token: inviteToken } = req.body;
+    const { name, email, password, token: inviteToken, orgId } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ error: "Name, email, and password are required." });
     }
@@ -213,21 +277,50 @@ app.post("/api/auth/register", async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Look up invitation by token first, then by email
+    let [inv] = inviteToken
+      ? await db.select().from(invitations).where(eq(invitations.token, inviteToken))
+      : [];
+    if (!inv && cleanEmail) {
+      [inv] = await db.select().from(invitations).where(eq(invitations.email, cleanEmail));
+    }
+
     // Case 1: Pending user record already exists (created during invite)
     if (existingUser && existingUser.invitationStatus === "pending") {
-      await db
-        .update(users)
-        .set({
-          name: name.trim(),
-          passwordHash,
-          invitationStatus: "accepted",
-        })
-        .where(eq(users.id, existingUser.id));
+      const updateData: any = {
+        name: name.trim(),
+        passwordHash,
+        invitationStatus: "accepted",
+      };
+
+      if (inv) {
+        updateData.role = inv.role;
+        updateData.organizationId = inv.organizationId;
+        if (inv.branchId) updateData.branchId = inv.branchId;
+        if (inv.campaignId) updateData.campaignId = inv.campaignId;
+      } else if (orgId) {
+        updateData.organizationId = orgId;
+        updateData.role = "admin";
+      }
 
       await db
-        .update(invitations)
-        .set({ status: "accepted" })
-        .where(eq(invitations.email, cleanEmail));
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, existingUser.id));
+
+      if (inv) {
+        await db
+          .update(invitations)
+          .set({ status: "accepted" })
+          .where(eq(invitations.id, inv.id));
+
+        if (inv.role === "admin") {
+          await db
+            .update(organizations)
+            .set({ ownerEmail: cleanEmail, ownerName: name.trim() })
+            .where(eq(organizations.id, inv.organizationId));
+        }
+      }
 
       const [updatedUser] = await db.select().from(users).where(eq(users.id, existingUser.id));
       const sessionToken = await createSessionToken({
@@ -239,31 +332,25 @@ app.post("/api/auth/register", async (req, res) => {
       });
 
       res.setHeader("Set-Cookie", buildSessionCookie(sessionToken));
-      const { passwordHash: _, ...cleaned } = updatedUser;
-      return res.json({ user: cleaned, token: sessionToken });
+      const formattedUser = await formatUserWithOrg(updatedUser);
+      return res.json({ user: formattedUser, token: sessionToken });
     }
 
     // Case 2: New user registering from invitation or self-registering
     const allUsers = await db.select().from(users);
     const isFirstUser = allUsers.length === 0;
 
-    let assignedRole: "admin" | "manager" | "marketer" = isFirstUser ? "admin" : "marketer";
-    let assignedBranchId: string | null = null;
-    let assignedCampaignId: string | null = null;
-    let assignedSupervisorId: string | null = null;
-
-    // Check invitations table
-    const [inv] = await db
-      .select()
-      .from(invitations)
-      .where(eq(invitations.email, cleanEmail));
+    let assignedRole: "super_admin" | "admin" | "manager" | "marketer" = inv?.role || (orgId ? "admin" : (isFirstUser ? "admin" : "marketer"));
+    let assignedOrgId = inv?.organizationId || orgId || "org-default";
+    let assignedBranchId: string | null = inv?.branchId || null;
+    let assignedCampaignId: string | null = inv?.campaignId || null;
+    let assignedSupervisorId: string | null = inv?.invitedById || null;
 
     if (inv) {
-      assignedRole = inv.role;
-      assignedBranchId = inv.branchId;
-      assignedCampaignId = inv.campaignId;
-      assignedSupervisorId = inv.invitedById;
       await db.update(invitations).set({ status: "accepted" }).where(eq(invitations.id, inv.id));
+      if (inv.role === "admin") {
+        await db.update(organizations).set({ ownerEmail: cleanEmail, ownerName: name.trim() }).where(eq(organizations.id, inv.organizationId));
+      }
     }
 
     const userId = "u-" + Date.now();
@@ -276,6 +363,7 @@ app.post("/api/auth/register", async (req, res) => {
 
     const newUser = {
       id: userId,
+      organizationId: assignedOrgId,
       name: name.trim(),
       email: cleanEmail,
       passwordHash,
@@ -299,8 +387,8 @@ app.post("/api/auth/register", async (req, res) => {
     });
 
     res.setHeader("Set-Cookie", buildSessionCookie(sessionToken));
-    const { passwordHash: _, ...cleaned } = newUser;
-    return res.json({ user: cleaned, token: sessionToken });
+    const formattedUser = await formatUserWithOrg(newUser);
+    return res.json({ user: formattedUser, token: sessionToken });
   } catch (err: any) {
     console.error("Register error:", err);
     return res.status(500).json({ error: err.message || "Internal server error" });
@@ -359,8 +447,8 @@ app.get("/api/auth/me", async (req, res) => {
   try {
     const user = await getAuthUser(req);
     if (!user) return res.json({ user: null });
-    const { passwordHash: _, ...userWithoutPass } = user;
-    return res.json({ user: userWithoutPass });
+    const formatted = await formatUserWithOrg(user);
+    return res.json({ user: formatted });
   } catch (err) {
     return res.json({ user: null });
   }
@@ -393,12 +481,284 @@ const mailTransporter = nodemailer.createTransport({
   },
 });
 
+function getCleanOrigin(req: express.Request): string {
+  const rawOrigin = req.get("origin") || req.get("referer");
+  if (rawOrigin) {
+    try {
+      const url = new URL(rawOrigin);
+      if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+        return `http://${url.host}`;
+      }
+      return url.origin;
+    } catch {}
+  }
+  const host = req.get("host") || "localhost:8080";
+  if (host.includes("localhost") || host.includes("127.0.0.1")) {
+    return `http://${host}`;
+  }
+  const protocol = req.protocol === "https" || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+  return `${protocol}://${host}`;
+}
+
+// ------------------------------------------------------------------
+// SAAS MULTI-TENANT ORGANIZATIONS (SUPER ADMIN ONLY)
+// ------------------------------------------------------------------
+app.get("/api/organizations", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== "super_admin") {
+      return res.status(403).json({ error: "Only Super Admin can manage SaaS client instances." });
+    }
+
+    const allOrgs = await db.select().from(organizations).orderBy(desc(organizations.createdAt));
+    const allUsers = await db.select().from(users);
+    const allLeads = await db.select().from(leads);
+    const allInvs = await db.select().from(invitations);
+
+    const formatted = allOrgs.map((org) => {
+      const orgUsers = allUsers.filter((u) => u.organizationId === org.id);
+      const orgLeads = allLeads.filter((l) => l.organizationId === org.id);
+
+      // Find actual Workspace Admin for this organization
+      const adminUser = orgUsers.find((u) => u.role === "admin");
+      const adminInv = allInvs.find((i) => i.organizationId === org.id && i.role === "admin");
+
+      const displayEmail = adminUser?.email || adminInv?.email || org.ownerEmail;
+      const displayName = adminUser ? adminUser.name : (adminInv?.status === "accepted" ? "Active Admin" : org.ownerName);
+
+      return {
+        ...org,
+        ownerEmail: displayEmail,
+        ownerName: displayName,
+        userCount: orgUsers.length,
+        leadCount: orgLeads.length,
+      };
+    });
+
+    return res.json(formatted);
+  } catch (err: any) {
+    console.error("Get organizations error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/organizations", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== "super_admin") {
+      return res.status(403).json({ error: "Only Super Admin can create client instances." });
+    }
+
+    const { name, slug: rawSlug, adminEmail } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: "Client Organization Name is required." });
+    if (!adminEmail || !adminEmail.trim()) return res.status(400).json({ error: "Client Admin Email is required." });
+
+    const cleanEmail = adminEmail.toLowerCase().trim();
+    const slug = (rawSlug || name).toLowerCase().replace(/[^a-z0-9-]/g, "-");
+    const orgId = "org-" + Date.now();
+
+    const newOrg = {
+      id: orgId,
+      name: name.trim(),
+      slug,
+      ownerEmail: cleanEmail,
+      ownerName: "Pending Signup",
+      status: "active" as const,
+      createdAt: new Date(),
+    };
+
+    await db.insert(organizations).values(newOrg);
+
+    // Create an invite token for the client admin
+    const inviteToken = "inv-" + Date.now() + Math.random().toString(36).substring(2, 8);
+    await db.insert(invitations).values({
+      id: "inv-" + Date.now(),
+      organizationId: orgId,
+      email: cleanEmail,
+      role: "admin",
+      invitedById: authUser.id,
+      status: "pending",
+      token: inviteToken,
+      createdAt: new Date(),
+    });
+
+    const origin = getCleanOrigin(req);
+    const inviteUrl = `${origin}/register?orgId=${orgId}&token=${inviteToken}`;
+
+    // Send automated email via SMTP if configured
+    let emailSent = false;
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const smtpPort = parseInt(process.env.SMTP_PORT || "465");
+      const isSecure = process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === "true" : smtpPort === 465;
+
+      const dynamicTransporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: smtpPort,
+        secure: isSecure,
+        family: 4,
+        lookup: (hostname: string, opts: any, cb: any) => dns.lookup(hostname, { family: 4 }, cb),
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+        connectionTimeout: 15000,
+      } as any);
+
+      const mailOptions = {
+        from: process.env.SMTP_FROM || `"MarketOps SaaS" <${process.env.SMTP_USER || "no-reply@marketops.app"}>`,
+        to: cleanEmail,
+        subject: `🚀 Welcome to MarketOps — Your Workspace Instance for ${name.trim()} is Ready!`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background-color: #ffffff;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2 style="color: #0f172a; margin: 0;">MarketOps SaaS</h2>
+              <p style="color: #64748b; font-size: 14px; margin-top: 4px;">Client Workspace Instance Provisioned</p>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+            <p style="font-size: 15px; color: #334155;">Hello,</p>
+            <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+              Your new MarketOps workspace instance for <strong>${name.trim()}</strong> (<code>${slug}.marketops.app</code>) has been successfully created!
+            </p>
+            <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+              Click the button below to complete your registration as the Workspace Admin:
+            </p>
+            <div style="text-align: center; margin: 28px 0;">
+              <a href="${inviteUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
+                Accept & Register Admin Workspace
+              </a>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; word-break: break-all;">
+              Direct Link: <a href="${inviteUrl}" style="color: #2563eb;">${inviteUrl}</a>
+            </p>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
+              MarketOps SaaS — Isolated Workspace Management
+            </p>
+          </div>
+        `,
+      };
+
+      try {
+        await dynamicTransporter.sendMail(mailOptions);
+        emailSent = true;
+        console.log(`✉️ Automated SaaS provision email sent to ${cleanEmail}`);
+      } catch (smtpErr: any) {
+        console.error("❌ SaaS Email Delivery Error:", smtpErr.message || smtpErr);
+      }
+    }
+
+    return res.json({
+      organization: newOrg,
+      inviteToken,
+      inviteUrl,
+      emailSent,
+    });
+  } catch (err: any) {
+    console.error("Create organization error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/organizations/:id/status", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== "super_admin") {
+      return res.status(403).json({ error: "Only Super Admin can update instance status." });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!["active", "suspended"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status value." });
+    }
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+    if (!org) return res.status(404).json({ error: "Organization instance not found." });
+
+    await db.update(organizations).set({ status }).where(eq(organizations.id, id));
+
+    // Send automated email to client admin about status change
+    let emailSent = false;
+    const targetEmail = org.ownerEmail;
+
+    if (targetEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const isSuspended = status === "suspended";
+      const subject = isSuspended
+        ? `⚠️ Important Notice: MarketOps Workspace [${org.name}] Suspended`
+        : `✅ Workspace Reactivated: MarketOps [${org.name}] is Active`;
+
+      const html = isSuspended
+        ? `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #fee2e2; border-radius: 12px; padding: 24px; background-color: #ffffff;">
+            <h2 style="color: #dc2626; margin-top: 0;">Workspace Suspended</h2>
+            <p style="color: #334155; font-size: 15px;">Hello,</p>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+              Please be advised that your MarketOps workspace <strong>${org.name}</strong> (<code>${org.slug}.marketops.app</code>) has been <strong>suspended</strong> by the platform administrator.
+            </p>
+            <p style="color: #64748b; font-size: 13px; line-height: 1.6;">
+              All team members under this workspace will be temporarily unable to log in until reactivated. If you believe this is an error, please reach out to platform support.
+            </p>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">MarketOps SaaS Management</p>
+          </div>
+        `
+        : `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #d1fae5; border-radius: 12px; padding: 24px; background-color: #ffffff;">
+            <h2 style="color: #059669; margin-top: 0;">Workspace Reactivated</h2>
+            <p style="color: #334155; font-size: 15px;">Hello,</p>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+              Great news! Your MarketOps workspace <strong>${org.name}</strong> (<code>${org.slug}.marketops.app</code>) has been <strong>reactivated</strong>.
+            </p>
+            <p style="color: #64748b; font-size: 13px; line-height: 1.6;">
+              You and your team can now log back in and resume full operations.
+            </p>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">MarketOps SaaS Management</p>
+          </div>
+        `;
+
+      const dynamicTransporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: parseInt(process.env.SMTP_PORT || "465"),
+        secure: process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === "true" : parseInt(process.env.SMTP_PORT || "465") === 465,
+        family: 4,
+        lookup: (hostname: string, opts: any, cb: any) => dns.lookup(hostname, { family: 4 }, cb),
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      } as any);
+
+      try {
+        await dynamicTransporter.sendMail({
+          from: process.env.SMTP_FROM || `"MarketOps SaaS" <${process.env.SMTP_USER}>`,
+          to: targetEmail,
+          subject,
+          html,
+        });
+        emailSent = true;
+        console.log(`✉️ Automated workspace ${status} notification email sent to ${targetEmail}`);
+      } catch (smtpErr: any) {
+        console.error("❌ Status Email Delivery Error:", smtpErr.message || smtpErr);
+      }
+    }
+
+    return res.json({ success: true, status, emailSent });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ------------------------------------------------------------------
 // BRANCHES & CAMPAIGNS (ADMIN ONLY CREATION)
 // ------------------------------------------------------------------
-app.get("/api/branches", async (_req, res) => {
+app.get("/api/branches", async (req, res) => {
   try {
-    const rows = await db.select().from(branches);
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+    const rows = user?.role === "super_admin"
+      ? await db.select().from(branches)
+      : await db.select().from(branches).where(eq(branches.organizationId, orgId));
     return res.json(rows);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -408,7 +768,7 @@ app.get("/api/branches", async (_req, res) => {
 app.post("/api/branches", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || user.role !== "admin") {
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
       return res.status(403).json({ error: "Only Admin can create branches." });
     }
 
@@ -417,6 +777,7 @@ app.post("/api/branches", async (req, res) => {
 
     const newBranch = {
       id: "b-" + Date.now(),
+      organizationId: user.organizationId || "org-default",
       name,
       location: location || null,
       createdAt: new Date(),
@@ -431,7 +792,7 @@ app.post("/api/branches", async (req, res) => {
 app.delete("/api/branches/:id", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || user.role !== "admin") {
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
       return res.status(403).json({ error: "Only Admin can delete branches." });
     }
 
@@ -446,7 +807,7 @@ app.delete("/api/branches/:id", async (req, res) => {
 app.patch("/api/branches/:id", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || user.role !== "admin") {
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
       return res.status(403).json({ error: "Only Admin can edit branches." });
     }
 
@@ -463,9 +824,13 @@ app.patch("/api/branches/:id", async (req, res) => {
   }
 });
 
-app.get("/api/campaigns", async (_req, res) => {
+app.get("/api/campaigns", async (req, res) => {
   try {
-    const rows = await db.select().from(campaigns);
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+    const rows = user?.role === "super_admin"
+      ? await db.select().from(campaigns)
+      : await db.select().from(campaigns).where(eq(campaigns.organizationId, orgId));
     return res.json(
       rows.map((c) => ({
         id: c.id,
@@ -483,7 +848,7 @@ app.get("/api/campaigns", async (_req, res) => {
 app.post("/api/campaigns", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || user.role !== "admin") {
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
       return res.status(403).json({ error: "Only Admin can create campaigns." });
     }
 
@@ -492,6 +857,7 @@ app.post("/api/campaigns", async (req, res) => {
 
     const newCamp = {
       id: "c-" + Date.now(),
+      organizationId: user.organizationId || "org-default",
       name,
       description: description || null,
       budget: Number(budget) || 0,
@@ -510,7 +876,10 @@ app.post("/api/campaigns", async (req, res) => {
 app.get("/api/team", async (req, res) => {
   try {
     const authUser = await getAuthUser(req);
-    const allUsers = await db.select().from(users);
+    const orgId = authUser?.organizationId || "org-default";
+    const allUsers = authUser?.role === "super_admin"
+      ? await db.select().from(users)
+      : await db.select().from(users).where(eq(users.organizationId, orgId));
     const allBranches = await db.select().from(branches);
     const allCampaigns = await db.select().from(campaigns);
 
@@ -596,9 +965,12 @@ app.post("/api/team/invite", async (req, res) => {
     const rawSupervisor = authUser.role === "manager" ? authUser.id : authUser.supervisorId;
     const targetSupervisorId = (rawSupervisor && rawSupervisor.trim()) || null;
 
+    const userOrgId = authUser.organizationId || "org-default";
+
     // Create user with status 'pending'
     const newUser = {
       id: userId,
+      organizationId: userOrgId,
       name,
       email,
       passwordHash,
@@ -615,8 +987,10 @@ app.post("/api/team/invite", async (req, res) => {
 
     // Record in invitations table
     const inviteId = "inv-" + Date.now();
+    const inviteToken = "inv-" + Date.now() + Math.random().toString(36).substring(2, 8);
     await db.insert(invitations).values({
       id: inviteId,
+      organizationId: userOrgId,
       email,
       phone: phone || null,
       role: targetRole,
@@ -624,7 +998,7 @@ app.post("/api/team/invite", async (req, res) => {
       branchId: newUser.branchId,
       invitedById: authUser.id,
       status: "pending",
-      token: "tok-" + Date.now(),
+      token: inviteToken,
       createdAt: new Date(),
     });
 
@@ -636,8 +1010,8 @@ app.post("/api/team/invite", async (req, res) => {
     const campaignName = cObj?.name || "General Campaign";
 
     // Build Email & Nodemailer SMTP dispatch
-    const origin = req.headers.origin || `http://localhost:8080`;
-    const inviteLink = `${origin}/login?email=${encodeURIComponent(email)}`;
+    const origin = getCleanOrigin(req);
+    const inviteLink = `${origin}/login?email=${encodeURIComponent(email)}&orgId=${userOrgId}&token=${inviteToken}`;
 
     const mailOptions = {
       from: process.env.SMTP_FROM || (process.env.SMTP_USER ? `"MarketOps Team" <${process.env.SMTP_USER}>` : '"MarketOps Team" <no-reply@marketops.com>'),
@@ -827,9 +1201,12 @@ app.delete("/api/campaigns/:id", async (req, res) => {
 // ------------------------------------------------------------------
 // ACTIVITIES
 // ------------------------------------------------------------------
-app.get("/api/activities", async (_req, res) => {
+app.get("/api/activities", async (req, res) => {
   try {
-    const rows = await db
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+
+    const baseQuery = db
       .select({
         activity: activities,
         branchName: branches.name,
@@ -837,12 +1214,15 @@ app.get("/api/activities", async (_req, res) => {
       })
       .from(activities)
       .leftJoin(branches, eq(activities.branchId, branches.id))
-      .leftJoin(users, eq(activities.memberId, users.id))
-      .orderBy(desc(activities.date));
+      .leftJoin(users, eq(activities.memberId, users.id));
+
+    const rows = user?.role === "super_admin"
+      ? await baseQuery.orderBy(desc(activities.date))
+      : await baseQuery.where(eq(activities.organizationId, orgId)).orderBy(desc(activities.date));
 
     const formatted = rows.map((r) => ({
       ...r.activity,
-      branch: r.branchName || "Accra HQ",
+      branch: r.branchName || "HQ",
       memberName: r.memberName || "Team Member",
     }));
 
@@ -855,6 +1235,9 @@ app.get("/api/activities", async (_req, res) => {
 
 app.post("/api/activities", async (req, res) => {
   try {
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+
     const body = req.body;
     let targetBranchId = body.branchId || null;
     if (targetBranchId) {
@@ -864,13 +1247,14 @@ app.post("/api/activities", async (req, res) => {
 
     const newAct = {
       id: "act-" + Date.now(),
+      organizationId: orgId,
       campaign: body.campaign || "General",
       channel: body.channel || "Facebook",
       approach: body.approach || "Organic Post",
       destination: body.destination || "",
       content: body.content || "",
       summary: body.summary || body.content?.substring(0, 100) || "",
-      memberId: body.memberId || "u-admin",
+      memberId: user?.id || body.memberId || "u-admin",
       branchId: targetBranchId,
       date: body.date ? new Date(body.date) : new Date(),
       proofUrl: body.proofUrl || null,
@@ -884,7 +1268,8 @@ app.post("/api/activities", async (req, res) => {
     // Create notification
     await db.insert(notifications).values({
       id: "notif-" + Date.now(),
-      userId: body.memberId || "u-admin",
+      organizationId: orgId,
+      userId: user?.id || body.memberId || "u-admin",
       title: "New Activity Logged",
       body: `Log created: ${newAct.campaign} on ${newAct.channel}`,
       read: false,
@@ -940,9 +1325,13 @@ app.delete("/api/activities/:id", async (req, res) => {
 // ------------------------------------------------------------------
 // NOTIFICATIONS
 // ------------------------------------------------------------------
-app.get("/api/notifications", async (_req, res) => {
+app.get("/api/notifications", async (req, res) => {
   try {
-    const rows = await db.select().from(notifications).orderBy(desc(notifications.createdAt));
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+    const rows = user?.role === "super_admin"
+      ? await db.select().from(notifications).orderBy(desc(notifications.createdAt))
+      : await db.select().from(notifications).where(and(eq(notifications.organizationId, orgId), eq(notifications.userId, user?.id || ""))).orderBy(desc(notifications.createdAt));
     return res.json(rows);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -966,9 +1355,13 @@ app.post("/api/notifications/read", async (req, res) => {
 // ------------------------------------------------------------------
 // TODOS
 // ------------------------------------------------------------------
-app.get("/api/todos", async (_req, res) => {
+app.get("/api/todos", async (req, res) => {
   try {
-    const rows = await db.select().from(todos).orderBy(desc(todos.createdAt));
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+    const rows = user?.role === "super_admin"
+      ? await db.select().from(todos).orderBy(desc(todos.createdAt))
+      : await db.select().from(todos).where(eq(todos.organizationId, orgId)).orderBy(desc(todos.createdAt));
     return res.json(rows);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -977,12 +1370,16 @@ app.get("/api/todos", async (_req, res) => {
 
 app.post("/api/todos", async (req, res) => {
   try {
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+
     const { title, assigneeId, createdById, dueDate, notes } = req.body;
     const newTodo = {
       id: "t-" + Date.now(),
+      organizationId: orgId,
       title,
-      assigneeId: assigneeId || "u-admin",
-      createdById: createdById || "u-admin",
+      assigneeId: assigneeId || user?.id || "u-admin",
+      createdById: createdById || user?.id || "u-admin",
       dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 86400000 * 3),
       status: "todo" as const,
       notes: notes || null,
@@ -1014,9 +1411,13 @@ app.patch("/api/todos/:id", async (req, res) => {
 // ------------------------------------------------------------------
 // APPROVALS & ASSETS
 // ------------------------------------------------------------------
-app.get("/api/approvals", async (_req, res) => {
+app.get("/api/approvals", async (req, res) => {
   try {
-    const rows = await db.select().from(approvals).orderBy(desc(approvals.submittedAt));
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+    const rows = user?.role === "super_admin"
+      ? await db.select().from(approvals).orderBy(desc(approvals.submittedAt))
+      : await db.select().from(approvals).where(eq(approvals.organizationId, orgId)).orderBy(desc(approvals.submittedAt));
     return res.json(rows);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -1026,14 +1427,17 @@ app.get("/api/approvals", async (_req, res) => {
 app.post("/api/approvals", async (req, res) => {
   try {
     const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+
     const { title, type, description, previewUrl } = req.body;
     if (!title) return res.status(400).json({ error: "Title is required." });
 
     const newApproval = {
       id: "app-" + Date.now(),
+      organizationId: orgId,
       title,
       type: type || "image",
-      submittedById: user?.id || "u-tm-efua",
+      submittedById: user?.id || "u-admin",
       previewUrl: previewUrl || "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600",
       description: description || "",
       status: "pending" as const,
@@ -1044,7 +1448,8 @@ app.post("/api/approvals", async (req, res) => {
 
     await db.insert(notifications).values({
       id: "notif-" + Date.now(),
-      userId: "u-admin",
+      organizationId: orgId,
+      userId: user?.id || "u-admin",
       title: "New Item Submitted for Approval",
       body: `"${title}" submitted by ${user?.name || "Team Member"}.`,
       read: false,
@@ -1082,6 +1487,7 @@ app.patch("/api/approvals/:id", async (req, res) => {
     if (status === "approved" && item) {
       const newAsset = {
         id: "ast-" + Date.now(),
+        organizationId: user.organizationId || "org-default",
         approvalId: item.id,
         title: item.title,
         description: item.description,
@@ -1097,6 +1503,7 @@ app.patch("/api/approvals/:id", async (req, res) => {
     if (item?.submittedById) {
       await db.insert(notifications).values({
         id: "notif-" + Date.now(),
+        organizationId: user.organizationId || "org-default",
         userId: item.submittedById,
         title: status === "approved" ? "Submission Approved 🎉" : "Submission Rejected ❌",
         body: `Your submission "${item.title}" was ${status} by ${user.name}.`,
@@ -1130,9 +1537,13 @@ app.delete("/api/approvals/:id", async (req, res) => {
   }
 });
 
-app.get("/api/assets", async (_req, res) => {
+app.get("/api/assets", async (req, res) => {
   try {
-    const rows = await db.select().from(assets).orderBy(desc(assets.createdAt));
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+    const rows = user?.role === "super_admin"
+      ? await db.select().from(assets).orderBy(desc(assets.createdAt))
+      : await db.select().from(assets).where(eq(assets.organizationId, orgId)).orderBy(desc(assets.createdAt));
     return res.json(rows);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -1153,6 +1564,7 @@ app.post("/api/assets", async (req, res) => {
 
     const newAsset = {
       id: "ast-" + Date.now(),
+      organizationId: user.organizationId || "org-default",
       title,
       description: description || "",
       type: type || "image",
@@ -1188,9 +1600,12 @@ app.delete("/api/assets/:id", async (req, res) => {
 // ------------------------------------------------------------------
 // LEADS
 // ------------------------------------------------------------------
-app.get("/api/leads", async (_req, res) => {
+app.get("/api/leads", async (req, res) => {
   try {
-    const rows = await db
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+
+    const baseQuery = db
       .select({
         lead: leads,
         branchName: branches.name,
@@ -1198,12 +1613,15 @@ app.get("/api/leads", async (_req, res) => {
       })
       .from(leads)
       .leftJoin(branches, eq(leads.branchId, branches.id))
-      .leftJoin(users, eq(leads.assignedToId, users.id))
-      .orderBy(desc(leads.createdAt));
+      .leftJoin(users, eq(leads.assignedToId, users.id));
+
+    const rows = user?.role === "super_admin"
+      ? await baseQuery.orderBy(desc(leads.createdAt))
+      : await baseQuery.where(eq(leads.organizationId, orgId)).orderBy(desc(leads.createdAt));
 
     const formatted = rows.map((r) => ({
       ...r.lead,
-      branch: r.branchName || "Accra HQ",
+      branch: r.branchName || "HQ",
       memberName: r.memberName || "Team Member",
     }));
 
@@ -1215,6 +1633,9 @@ app.get("/api/leads", async (_req, res) => {
 
 app.post("/api/leads", async (req, res) => {
   try {
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+
     const { name, contact, campaign, channel, approach, destination, assignedToId, branchId, notes } = req.body;
     if (!name || !contact) {
       return res.status(400).json({ error: "Name and contact are required." });
@@ -1222,13 +1643,14 @@ app.post("/api/leads", async (req, res) => {
 
     const newLead = {
       id: "lead-" + Date.now(),
+      organizationId: orgId,
       name,
       contact,
       campaign: campaign || "General",
       channel: channel || "Direct Outreach",
       approach: approach || "Organic Post",
       destination: destination || "Social Media",
-      assignedToId: assignedToId || "u-admin",
+      assignedToId: assignedToId || user?.id || "u-admin",
       branchId: branchId || null,
       status: "new" as const,
       value: 0,
@@ -1282,11 +1704,74 @@ app.delete("/api/leads/:id", async (req, res) => {
 // ------------------------------------------------------------------
 // COMPANY LINKS
 // ------------------------------------------------------------------
-app.get("/api/company-links", async (_req, res) => {
+app.get("/api/company-links", async (req, res) => {
   try {
-    const rows = await db.select().from(companyLinks);
+    const user = await getAuthUser(req);
+    const orgId = user?.organizationId || "org-default";
+    const rows = user?.role === "super_admin"
+      ? await db.select().from(companyLinks)
+      : await db.select().from(companyLinks).where(eq(companyLinks.organizationId, orgId));
     return res.json(rows);
   } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/company-links", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || (user.role !== "admin" && user.role !== "manager")) {
+      return res.status(403).json({ error: "Only Admins and Managers can edit company links." });
+    }
+
+    const orgId = user.organizationId || "org-default";
+    const { platform, url, handle, label, category } = req.body;
+
+    if (!platform) {
+      return res.status(400).json({ error: "Platform name is required." });
+    }
+
+    const [existing] = await db
+      .select()
+      .from(companyLinks)
+      .where(and(eq(companyLinks.organizationId, orgId), eq(companyLinks.platform, platform)));
+
+    if (existing) {
+      if (!url && !handle) {
+        await db.delete(companyLinks).where(eq(companyLinks.id, existing.id));
+        return res.json({ success: true, deleted: true });
+      }
+      await db
+        .update(companyLinks)
+        .set({
+          url: url || null,
+          handle: handle || null,
+          label: label || platform,
+          category: category || "Social",
+        })
+        .where(eq(companyLinks.id, existing.id));
+
+      const [updated] = await db.select().from(companyLinks).where(eq(companyLinks.id, existing.id));
+      return res.json(updated);
+    } else {
+      if (!url && !handle) {
+        return res.json({ success: true });
+      }
+      const newLinkId = "cl-" + Date.now();
+      const newLink = {
+        id: newLinkId,
+        organizationId: orgId,
+        platform,
+        label: label || platform,
+        url: url || null,
+        handle: handle || null,
+        category: category || "Social",
+      };
+      await db.insert(companyLinks).values(newLink);
+      return res.json(newLink);
+    }
+  } catch (err: any) {
+    console.error("Save company link error:", err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -1478,6 +1963,46 @@ async function initDbSchema() {
       )
     `);
 
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS organizations (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        slug VARCHAR(128) NOT NULL UNIQUE,
+        owner_email VARCHAR(255),
+        owner_name VARCHAR(255),
+        status ENUM('active', 'suspended') NOT NULL DEFAULT 'active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    try { await db.execute(sql`ALTER TABLE users MODIFY COLUMN role ENUM('super_admin', 'admin', 'manager', 'marketer') NOT NULL DEFAULT 'marketer'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE invitations MODIFY COLUMN role ENUM('super_admin', 'admin', 'manager', 'marketer') NOT NULL`); } catch { }
+
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE campaigns ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE branches ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE invitations ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE activities ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE todos ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE approvals ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE assets ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE leads ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE company_links ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE notifications ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+
+    // Ensure default organization exists
+    const [existingOrg] = await db.select().from(organizations).where(eq(organizations.id, "org-default"));
+    if (!existingOrg) {
+      await db.insert(organizations).values({
+        id: "org-default",
+        name: "Carezza Growth Team",
+        slug: "carezza",
+        ownerEmail: "admin@carezza.com",
+        ownerName: "Ama Boateng",
+        status: "active",
+      });
+    }
+
     try { await db.execute(sql`ALTER TABLE leads ADD COLUMN campaign VARCHAR(255)`); } catch { }
     try { await db.execute(sql`ALTER TABLE leads ADD COLUMN channel VARCHAR(128)`); } catch { }
     try { await db.execute(sql`ALTER TABLE leads ADD COLUMN approach VARCHAR(128)`); } catch { }
@@ -1486,7 +2011,7 @@ async function initDbSchema() {
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN campaign_id VARCHAR(64)`); } catch { }
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN picture TEXT`); } catch { }
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN invitation_status ENUM('pending', 'accepted', 'revoked') DEFAULT 'accepted'`); } catch { }
-    console.log("✨ All MySQL tables initialized successfully!");
+    console.log("✨ All MySQL Multi-Tenant SaaS tables initialized successfully!");
   } catch (e: any) {
     console.error("DB Init Schema Note:", e.message);
   }

@@ -234,11 +234,11 @@ function SettingsPage() {
       <section className="rounded-2xl border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold">
-              CZ
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground text-sm font-semibold uppercase">
+              {(currentUser?.organizationName || WORKSPACE).substring(0, 2)}
             </div>
             <div>
-              <div className="font-medium text-base">{WORKSPACE}</div>
+              <div className="font-medium text-base">{currentUser?.organizationName || WORKSPACE}</div>
               <div className="text-xs text-muted-foreground">
                 {members.length} active team members · {branches.length} operational branches
               </div>

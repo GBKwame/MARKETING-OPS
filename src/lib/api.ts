@@ -237,6 +237,19 @@ export async function getCompanyLinksApi() {
   return fetchApi<any[]>("/api/company-links");
 }
 
+export async function updateCompanyLinkApi(data: {
+  platform: string;
+  url: string | null;
+  handle?: string;
+  label?: string;
+  category?: string;
+}) {
+  return fetchApi<any>("/api/company-links", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 // Team Management & Invitations
 export async function getTeamApi() {
   return fetchApi<any[]>("/api/team");
@@ -271,7 +284,7 @@ export async function deleteTeamMemberApi(id: string) {
 export async function promoteTeamMemberApi(
   id: string,
   data: {
-    targetRole: "admin" | "manager" | "marketer";
+    targetRole: "super_admin" | "admin" | "manager" | "marketer";
     branchId?: string;
     campaignId?: string;
   }
@@ -279,5 +292,33 @@ export async function promoteTeamMemberApi(
   return fetchApi<{ success: boolean; user: any }>(`/api/team/${id}/promote`, {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+// SaaS Super Admin Organizations
+export async function getOrganizationsApi() {
+  return fetchApi<any[]>("/api/organizations");
+}
+
+export async function createOrganizationApi(data: {
+  name: string;
+  slug?: string;
+  adminEmail: string;
+}) {
+  return fetchApi<{
+    organization: any;
+    inviteToken: string;
+    inviteUrl: string;
+    emailSent: boolean;
+  }>("/api/organizations", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateOrgStatusApi(id: string, status: "active" | "suspended") {
+  return fetchApi<{ success: boolean; status: string; emailSent?: boolean }>(`/api/organizations/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
   });
 }

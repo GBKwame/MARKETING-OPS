@@ -10,6 +10,7 @@ import {
   Users,
   Sliders,
   User,
+  Building2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -46,12 +47,18 @@ export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const isMarketer = currentUser?.role === "marketer";
-  const visibleItems = isMarketer ? items.filter((i) => i.url !== "/settings" && i.url !== "/team") : items;
+  const isSuperAdmin = currentUser?.role === "super_admin";
+
+  const visibleItems = isSuperAdmin
+    ? [{ title: "SaaS Admin Portal", url: "/super-admin", icon: Building2 }]
+    : isMarketer
+    ? items.filter((i) => i.url !== "/settings" && i.url !== "/team")
+    : items;
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/60">
       <SidebarHeader className="border-b border-border/60">
-        <Link to="/" className="flex items-center gap-2.5 px-2 py-2">
+        <Link to={isSuperAdmin ? "/super-admin" : "/"} className="flex items-center gap-2.5 px-2 py-2">
           {/* Custom MarketOps Geometric Pulse Logo SVG */}
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
             <svg
@@ -69,7 +76,9 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="min-w-0">
               <div className="truncate text-sm font-bold tracking-tight">MarketOps</div>
-              <div className="truncate text-[11px] text-muted-foreground">{WORKSPACE}</div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {currentUser?.organizationName || WORKSPACE}
+              </div>
             </div>
           )}
         </Link>

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Globe,
   Facebook,
@@ -98,9 +98,14 @@ function CompanyLinksPage() {
   const handleSave = async (platform: string, url: string, handle: string) => {
     const trimmedUrl = url.trim();
     const trimmedHandle = handle.trim();
-    await updateCompanyLink(platform, trimmedUrl || null, trimmedHandle || undefined);
-    setEditing(null);
-    toast.success(`${platform} updated`);
+    try {
+      await updateCompanyLink(platform, trimmedUrl || null, trimmedHandle || undefined);
+      setEditing(null);
+      toast.success(`${platform} updated`);
+    } catch (err: any) {
+      toast.error(err.message || `Failed to update ${platform}`);
+      throw err;
+    }
   };
 
   return (
@@ -148,41 +153,39 @@ function CompanyLinksPage() {
                         rel="noopener noreferrer"
                         className="inline-flex max-w-[360px] items-center gap-1.5 truncate font-medium text-primary hover:underline"
                       >
-                        <span className="truncate">{link.handle ?? link.url}</span>
-                        <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                        <span className="truncate">{link.handle || link.url}</span>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-60" />
                       </a>
                     ) : (
-                      <span className="text-muted-foreground/60">N/A</span>
+                      <span className="text-xs text-muted-foreground">N/A</span>
                     )}
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center justify-end gap-1">
+                  <td className="px-5 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
                       {link.url && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="gap-1.5"
+                          className="h-8 px-2.5 text-xs gap-1.5"
                           onClick={() => handleCopy(link)}
                         >
                           {isCopied ? (
-                            <>
-                              <Check className="h-3.5 w-3.5" /> Copied
-                            </>
+                            <Check className="h-3.5 w-3.5 text-emerald-500" />
                           ) : (
-                            <>
-                              <Copy className="h-3.5 w-3.5" /> Copy
-                            </>
+                            <Copy className="h-3.5 w-3.5" />
                           )}
+                          <span>{isCopied ? "Copied" : "Copy"}</span>
                         </Button>
                       )}
                       {canEdit && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          className="gap-1.5"
+                          className="h-8 px-2.5 text-xs gap-1.5"
                           onClick={() => setEditing(link)}
                         >
-                          <Pencil className="h-3.5 w-3.5" /> Edit
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span>Edit</span>
                         </Button>
                       )}
                     </div>
@@ -194,56 +197,67 @@ function CompanyLinksPage() {
         </table>
       </div>
 
-      {/* Mobile cards */}
-      <div className="space-y-2 sm:hidden">
+      {/* Mobile card list */}
+      <div className="space-y-3 sm:hidden">
         {links.map((link) => {
           const meta = PLATFORM_META[link.platform];
           const Icon = meta.icon;
           const isCopied = copiedPlatform === link.platform;
+
           return (
             <div key={link.platform} className="rounded-2xl border bg-card p-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${meta.tint}`}>
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{link.platform}</div>
-                  {link.url ? (
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block truncate text-xs text-primary hover:underline"
-                    >
-                      {link.handle ?? link.url}
-                    </a>
-                  ) : (
-                    <div className="text-xs text-muted-foreground/60">N/A</div>
-                  )}
-                </div>
-              </div>
-              {(link.url || canEdit) && (
-                <div className="mt-3 flex items-center gap-2">
-                  {link.url && (
-                    <Button variant="secondary" size="sm" className="flex-1 gap-1.5" onClick={() => handleCopy(link)}>
-                      {isCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                      {isCopied ? "Copied" : "Copy"}
-                    </Button>
-                  )}
-                  {link.url && (
-                    <Button asChild variant="secondary" size="sm" className="flex-1 gap-1.5">
-                      <a href={link.url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-3.5 w-3.5" /> Open
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${meta.tint}`}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm">{link.platform}</div>
+                    {link.url ? (
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex max-w-[200px] items-center gap-1 truncate text-xs text-primary hover:underline"
+                      >
+                        <span className="truncate">{link.handle || link.url}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                       </a>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">Not set</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {link.url && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={() => handleCopy(link)}
+                      title="Copy Link"
+                    >
+                      {isCopied ? (
+                        <Check className="h-4 w-4 text-emerald-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
                     </Button>
                   )}
                   {canEdit && (
-                    <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setEditing(link)}>
-                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={() => setEditing(link)}
+                      title="Edit Link"
+                    >
+                      <Pencil className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
@@ -271,54 +285,69 @@ function EditLinkDialog({
 }: {
   link: CompanyLink | null;
   onClose: () => void;
-  onSave: (platform: string, url: string, handle: string) => void;
+  onSave: (platform: string, url: string, handle: string) => Promise<void>;
 }) {
   const [url, setUrl] = useState("");
   const [handle, setHandle] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (link) {
+      setUrl(link.url ?? "");
+      setHandle(link.handle ?? "");
+    }
+  }, [link]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!link) return;
+    setSaving(true);
+    try {
+      await onSave(link.platform, url, handle);
+    } catch {
+      // Error handled in parent
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <Dialog
-      open={!!link}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-        if (open && link) {
-          setUrl(link.url ?? "");
-          setHandle(link.handle ?? "");
-        }
-      }}
-    >
-      <DialogTrigger className="hidden" />
+    <Dialog open={!!link} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit {link?.platform}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="link-url">Link</Label>
-            <Input
-              id="link-url"
-              placeholder="https://…"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">Leave empty to mark as N/A.</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="link-url">Link</Label>
+              <Input
+                id="link-url"
+                placeholder="https://…"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Leave empty to mark as N/A.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="link-handle">Display handle (optional)</Label>
+              <Input
+                id="link-handle"
+                placeholder="@your_handle"
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="link-handle">Display handle (optional)</Label>
-            <Input
-              id="link-handle"
-              placeholder="@your_handle"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={() => link && onSave(link.platform, url, handle)}>Save</Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

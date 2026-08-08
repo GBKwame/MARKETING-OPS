@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMemo, useEffect } from "react";
 import {
   RadioTower,
   PieChart,
@@ -29,7 +29,14 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const { currentUser, activities, totalBudget } = useStore();
+  const navigate = useNavigate();
   const isMarketer = currentUser?.role === "marketer";
+
+  useEffect(() => {
+    if (currentUser?.role === "super_admin") {
+      navigate({ to: "/super-admin" });
+    }
+  }, [currentUser, navigate]);
 
   const totals = useMemo(() => {
     const campaigns = new Set(activities.map((a) => a.campaign)).size;

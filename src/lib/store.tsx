@@ -32,6 +32,7 @@ import {
   updateLeadApi,
   deleteLeadApi,
   getCompanyLinksApi,
+  updateCompanyLinkApi,
   getCampaignsApi,
   getNotificationsApi,
   markNotificationsReadApi,
@@ -41,7 +42,7 @@ import {
   promoteTeamMemberApi,
 } from "./api";
 
-export type Role = "admin" | "manager" | "marketer";
+export type Role = "super_admin" | "admin" | "manager" | "marketer";
 
 export interface Member {
   id: string;
@@ -57,6 +58,9 @@ export interface Member {
   supervisorId?: string | null;
   avatar: string;
   picture?: string | null;
+  organizationId?: string;
+  organizationName?: string;
+  organizationSlug?: string;
 }
 
 export interface Campaign {
@@ -361,11 +365,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateCompanyLink = useCallback(
     async (platform: string, url: string | null, handle?: string) => {
-      setCompanyLinks((prev) =>
-        prev.map((l) => (l.platform === platform ? { ...l, url, handle } : l)),
-      );
+      await updateCompanyLinkApi({ platform, url, handle });
+      await loadAllData();
     },
-    []
+    [loadAllData]
   );
 
   const logActivity = useCallback(

@@ -9,7 +9,7 @@ import {
   mysqlEnum,
 } from "drizzle-orm/mysql-core";
 
-export const roleEnum = mysqlEnum(["admin", "manager", "marketer"]);
+export const roleEnum = mysqlEnum(["super_admin", "admin", "manager", "marketer"]);
 export const todoStatusEnum = mysqlEnum(["todo", "in_progress", "done"]);
 export const approvalStatusEnum = mysqlEnum(["draft", "pending", "approved", "rejected"]);
 export const assetTypeEnum = mysqlEnum(["flyer", "video", "image", "text", "other"]);
@@ -17,10 +17,23 @@ export const leadStatusEnum = mysqlEnum(["new", "contacted", "qualified", "clien
 export const notificationKindEnum = mysqlEnum(["activity", "todo", "approval"]);
 export const campaignStatusEnum = mysqlEnum(["active", "paused", "completed"]);
 export const invitationStatusEnum = mysqlEnum(["pending", "accepted", "revoked"]);
+export const orgStatusEnum = mysqlEnum(["active", "suspended"]);
+
+// --- Multi-Tenant SaaS Organizations ---
+export const organizations = mysqlTable("organizations", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 128 }).notNull().unique(),
+  ownerEmail: varchar("owner_email", { length: 255 }),
+  ownerName: varchar("owner_name", { length: 255 }),
+  status: orgStatusEnum.notNull().default("active"),
+  createdAt: datetime("created_at").$defaultFn(() => new Date()),
+});
 
 // --- Campaigns ---
 export const campaigns = mysqlTable("campaigns", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   budget: int("budget").notNull().default(0),
@@ -31,14 +44,16 @@ export const campaigns = mysqlTable("campaigns", {
 // --- Branches ---
 export const branches = mysqlTable("branches", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   name: varchar("name", { length: 255 }).notNull(),
   location: varchar("location", { length: 255 }),
   createdAt: datetime("created_at").$defaultFn(() => new Date()),
 });
 
-// --- Users (Admin, Manager, Marketer) ---
+// --- Users (Super Admin, Admin, Manager, Marketer) ---
 export const users = mysqlTable("users", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
@@ -55,6 +70,7 @@ export const users = mysqlTable("users", {
 // --- Team Invitations ---
 export const invitations = mysqlTable("invitations", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   email: varchar("email", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 128 }),
   role: roleEnum.notNull(),
@@ -71,6 +87,7 @@ export const invitations = mysqlTable("invitations", {
 // --- Marketing Activities ---
 export const activities = mysqlTable("activities", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   campaign: varchar("campaign", { length: 255 }).notNull(),
   channel: varchar("channel", { length: 128 }).notNull(),
   approach: varchar("approach", { length: 128 }).notNull(),
@@ -93,6 +110,7 @@ export const activities = mysqlTable("activities", {
 // --- To-Do Tasks ---
 export const todos = mysqlTable("todos", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   title: varchar("title", { length: 255 }).notNull(),
   assigneeId: varchar("assignee_id", { length: 64 })
     .notNull()
@@ -109,6 +127,7 @@ export const todos = mysqlTable("todos", {
 // --- Approvals (Sign-off queue) ---
 export const approvals = mysqlTable("approvals", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   title: varchar("title", { length: 255 }).notNull(),
   type: assetTypeEnum.notNull().default("image"),
   submittedById: varchar("submitted_by_id", { length: 64 })
@@ -125,6 +144,7 @@ export const approvals = mysqlTable("approvals", {
 // --- Asset Vault ---
 export const assets = mysqlTable("assets", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   approvalId: varchar("approval_id", { length: 64 }).references(() => approvals.id),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
@@ -140,6 +160,7 @@ export const assets = mysqlTable("assets", {
 // --- Leads & Attribution ---
 export const leads = mysqlTable("leads", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   name: varchar("name", { length: 255 }).notNull(),
   contact: varchar("contact", { length: 128 }).notNull(),
   campaign: varchar("campaign", { length: 255 }),
@@ -158,7 +179,8 @@ export const leads = mysqlTable("leads", {
 // --- Company Links ---
 export const companyLinks = mysqlTable("company_links", {
   id: varchar("id", { length: 64 }).primaryKey(),
-  platform: varchar("platform", { length: 64 }).notNull().unique(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
+  platform: varchar("platform", { length: 64 }).notNull(),
   label: varchar("label", { length: 128 }).notNull(),
   url: text("url"),
   handle: varchar("handle", { length: 128 }),
@@ -168,6 +190,7 @@ export const companyLinks = mysqlTable("company_links", {
 // --- Notifications ---
 export const notifications = mysqlTable("notifications", {
   id: varchar("id", { length: 64 }).primaryKey(),
+  organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   userId: varchar("user_id", { length: 64 })
     .notNull()
     .references(() => users.id),

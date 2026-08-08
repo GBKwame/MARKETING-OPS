@@ -20,6 +20,7 @@ import { Route as MoreRouteImport } from './routes/more'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SuperAdminRouteImport } from './routes/super-admin'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as TodoRouteImport } from './routes/todo'
 import { Route as ChannelNameRouteImport } from './routes/channel.$name'
@@ -80,6 +81,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SuperAdminRoute = SuperAdminRouteImport.update({
+  id: '/super-admin',
+  path: '/super-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeamRoute = TeamRouteImport.update({
   id: '/team',
   path: '/team',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/super-admin': typeof SuperAdminRoute
   '/team': typeof TeamRoute
   '/todo': typeof TodoRoute
   '/channel/$name': typeof ChannelNameRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/super-admin': typeof SuperAdminRoute
   '/team': typeof TeamRoute
   '/todo': typeof TodoRoute
   '/channel/$name': typeof ChannelNameRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/super-admin': typeof SuperAdminRoute
   '/team': typeof TeamRoute
   '/todo': typeof TodoRoute
   '/channel/$name': typeof ChannelNameRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register'
     | '/settings'
+    | '/super-admin'
     | '/team'
     | '/todo'
     | '/channel/$name'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register'
     | '/settings'
+    | '/super-admin'
     | '/team'
     | '/todo'
     | '/channel/$name'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register'
     | '/settings'
+    | '/super-admin'
     | '/team'
     | '/todo'
     | '/channel/$name'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
+  SuperAdminRoute: typeof SuperAdminRoute
   TeamRoute: typeof TeamRoute
   TodoRoute: typeof TodoRoute
   ChannelNameRoute: typeof ChannelNameRoute
@@ -304,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/super-admin': {
+      id: '/super-admin'
+      path: '/super-admin'
+      fullPath: '/super-admin'
+      preLoaderRoute: typeof SuperAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/team': {
       id: '/team'
       path: '/team'
@@ -347,6 +367,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
+  SuperAdminRoute: SuperAdminRoute,
   TeamRoute: TeamRoute,
   TodoRoute: TodoRoute,
   ChannelNameRoute: ChannelNameRoute,

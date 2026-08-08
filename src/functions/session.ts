@@ -9,7 +9,7 @@ const COOKIE_NAME = "mo_session";
 export interface SessionPayload {
   userId: string;
   email: string;
-  role: "admin" | "manager" | "marketer";
+  role: "super_admin" | "admin" | "manager" | "marketer";
   branchId?: string | null;
   supervisorId?: string | null;
 }
