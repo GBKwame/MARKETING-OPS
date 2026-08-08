@@ -41,25 +41,27 @@ export function Topbar() {
       <div className="flex items-center gap-3">
         <SidebarTrigger className="h-9 w-9 border bg-background hover:bg-muted" />
 
-        <div className="relative w-64 sm:w-80 md:w-96">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search campaigns, channels, team..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-full bg-muted/50 pl-9 pr-8 text-xs transition-all focus:bg-background focus:ring-1 focus:ring-primary [&::-webkit-search-cancel-button]:appearance-none"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
-              title="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {currentUser?.role !== "super_admin" && (
+          <div className="relative w-64 sm:w-80 md:w-96">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search campaigns, channels, team..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 w-full rounded-full bg-muted/50 pl-9 pr-8 text-xs transition-all focus:bg-background focus:ring-1 focus:ring-primary [&::-webkit-search-cancel-button]:appearance-none"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
+                title="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right Section: Notifications, Theme, User Avatar */}

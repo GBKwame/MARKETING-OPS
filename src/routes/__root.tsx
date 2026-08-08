@@ -105,6 +105,8 @@ function ProtectedLayout() {
     return <Navigate to="/login" search={{ email: (search as any)?.email, token: (search as any)?.token }} />;
   }
 
+  const isSuperAdmin = currentUser?.role === "super_admin" || pathname.startsWith("/super-admin");
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -113,7 +115,7 @@ function ProtectedLayout() {
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar />
-          <main className="flex-1 px-4 pb-24 pt-6 md:px-8 md:pb-10">
+          <main className={`flex-1 px-4 pt-6 md:px-8 md:pb-10 ${isSuperAdmin ? "pb-6" : "pb-24"}`}>
             <Outlet />
           </main>
         </div>

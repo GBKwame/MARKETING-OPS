@@ -14,6 +14,10 @@ export function MobileBottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { currentUser } = useStore();
 
+  if (currentUser?.role === "super_admin" || pathname.startsWith("/super-admin")) {
+    return null;
+  }
+
   const isMarketer = currentUser?.role === "marketer";
 
   const navItems = [

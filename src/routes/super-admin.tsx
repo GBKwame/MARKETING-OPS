@@ -193,19 +193,24 @@ function SuperAdminPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6">
-      <PageHeader
-        title="SaaS Platform Super Admin Portal"
-        description="Provision, monitor & manage isolated MarketOps client workspace instances across organizations."
-        actions={
-          <Button
-            size="sm"
-            className="gap-2 cursor-pointer font-bold shadow-md hover:shadow-lg transition-all rounded-xl"
-            onClick={() => setOpenModal(true)}
-          >
-            <Plus className="h-4 w-4" /> Provision Client Workspace
-          </Button>
-        }
-      />
+      {/* Responsive Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
+            SaaS Platform Super Admin Portal
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            Provision, monitor & manage isolated MarketOps client workspace instances across organizations.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          className="gap-2 cursor-pointer font-bold shadow-md hover:shadow-lg transition-all rounded-xl w-full sm:w-auto shrink-0 justify-center"
+          onClick={() => setOpenModal(true)}
+        >
+          <Plus className="h-4 w-4" /> Provision Client Workspace
+        </Button>
+      </div>
 
       {/* Top Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -240,19 +245,19 @@ function SuperAdminPage() {
         </div>
       </div>
 
-      {/* Main Table Container */}
+      {/* Main Container */}
       <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
-        <div className="p-4 border-b bg-muted/20 flex items-center justify-between gap-4 flex-wrap">
+        <div className="p-4 border-b bg-muted/20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-primary" />
+            <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
             <h3 className="text-sm font-bold">Client Workspace Instances</h3>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             {/* Filter tabs */}
-            <div className="flex rounded-xl border bg-background p-0.5 text-xs font-medium">
+            <div className="flex rounded-xl border bg-background p-0.5 text-xs font-medium w-full sm:w-auto justify-between sm:justify-start">
               <button
-                className={`px-3 py-1 rounded-lg transition-all ${
+                className={`flex-1 sm:flex-initial px-3 py-1 rounded-lg transition-all text-center ${
                   statusFilter === "all" ? "bg-primary text-primary-foreground font-bold shadow-2xs" : "text-muted-foreground hover:text-foreground"
                 }`}
                 onClick={() => setStatusFilter("all")}
@@ -260,7 +265,7 @@ function SuperAdminPage() {
                 All ({orgs.length})
               </button>
               <button
-                className={`px-3 py-1 rounded-lg transition-all ${
+                className={`flex-1 sm:flex-initial px-3 py-1 rounded-lg transition-all text-center ${
                   statusFilter === "active" ? "bg-emerald-600 text-white font-bold shadow-2xs" : "text-muted-foreground hover:text-foreground"
                 }`}
                 onClick={() => setStatusFilter("active")}
@@ -268,7 +273,7 @@ function SuperAdminPage() {
                 Active ({activeCount})
               </button>
               <button
-                className={`px-3 py-1 rounded-lg transition-all ${
+                className={`flex-1 sm:flex-initial px-3 py-1 rounded-lg transition-all text-center ${
                   statusFilter === "suspended" ? "bg-rose-600 text-white font-bold shadow-2xs" : "text-muted-foreground hover:text-foreground"
                 }`}
                 onClick={() => setStatusFilter("suspended")}
@@ -283,13 +288,118 @@ function SuperAdminPage() {
                 placeholder="Search organizations or admin..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 pl-8 text-xs rounded-xl bg-background"
+                className="h-8 pl-8 text-xs rounded-xl bg-background w-full"
               />
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile View: Cards (< 640px) */}
+        <div className="divide-y block sm:hidden">
+          {loading ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">Loading SaaS client instances...</div>
+          ) : filteredOrgs.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">No organizations found matching "{search}".</div>
+          ) : (
+            filteredOrgs.map((org) => {
+              const inviteUrl = `${window.location.origin}/register?orgId=${org.id}`;
+              const isRegistered = (org.userCount || 0) > 0;
+
+              return (
+                <div key={org.id} className="p-4 space-y-3 bg-card">
+                  {/* Header Row */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary font-bold text-xs uppercase shadow-2xs">
+                        {org.name.substring(0, 2)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                          <span className="truncate">{org.name}</span>
+                          {org.id === "org-default" && (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/40 text-primary whitespace-nowrap shrink-0">
+                              Primary Default
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-[11px] font-mono text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                          <Globe className="h-3 w-3 text-muted-foreground shrink-0" />
+                          <span className="truncate">{org.slug}.marketops.app</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Badge
+                      variant="outline"
+                      className={
+                        org.status === "active"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold shrink-0"
+                          : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 text-[10px] font-bold shrink-0"
+                      }
+                    >
+                      {org.status.toUpperCase()}
+                    </Badge>
+                  </div>
+
+                  {/* Owner & Registration */}
+                  <div className="rounded-xl bg-muted/40 p-2.5 text-xs space-y-1">
+                    <div className="flex items-center gap-1.5 text-foreground font-medium truncate">
+                      <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate">{org.ownerEmail || "Not Provided"}</span>
+                    </div>
+                    <div className="text-[10px]">
+                      {isRegistered ? (
+                        <span className="text-emerald-500 font-semibold flex items-center gap-1">
+                          <UserCheck className="h-3 w-3" /> Admin Joined ({org.ownerName || "Active Owner"})
+                        </span>
+                      ) : (
+                        <span className="text-amber-500 font-medium flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Pending Registration Signup
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Metrics Badge */}
+                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground px-1">
+                    <div>Users: <span className="text-foreground font-bold">{org.userCount || 0}</span></div>
+                    <div>Leads: <span className="text-foreground font-bold">{org.leadCount || 0}</span></div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs gap-1.5 rounded-xl font-bold w-full"
+                      onClick={() => copyToClipboard(inviteUrl, org.id)}
+                    >
+                      {copiedId === org.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                      <span>{copiedId === org.id ? "Copied" : "Copy Invite"}</span>
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className={
+                        org.status === "active"
+                          ? "h-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 text-xs gap-1.5 rounded-xl font-bold w-full border border-rose-500/20"
+                          : "h-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 text-xs gap-1.5 rounded-xl font-bold w-full border border-emerald-500/20"
+                      }
+                      onClick={() => setConfirmingOrg({ org, action: org.status === "active" ? "suspend" : "activate" })}
+                    >
+                      <Power className="h-3.5 w-3.5" />
+                      <span>{org.status === "active" ? "Suspend" : "Activate"}</span>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View: Table (>= 640px) */}
+        <div className="hidden sm:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
