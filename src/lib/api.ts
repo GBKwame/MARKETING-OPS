@@ -354,3 +354,15 @@ export async function rejectWorkspaceRequestApi(id: string, reason?: string) {
     body: JSON.stringify({ reason }),
   });
 }
+
+// Organization Settings (Cross-Branch Notifications)
+export async function getOrgSettingsApi() {
+  return fetchApi<{ organizationId: string; allowCrossBranchNotifications: boolean }>("/api/organization/settings");
+}
+
+export async function updateOrgSettingsApi(data: { allowCrossBranchNotifications: boolean }) {
+  return fetchApi<{ success: boolean; allowCrossBranchNotifications: boolean }>("/api/organization/settings", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}

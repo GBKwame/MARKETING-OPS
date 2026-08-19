@@ -55,6 +55,8 @@ function Dashboard() {
     return { count: myActs.length, leads: myLeads, clients: myClients };
   }, [activities, currentUser]);
 
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "super_admin";
+
   return (
     <div className="mx-auto max-w-[1400px]">
       <PageHeader
@@ -69,7 +71,7 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className={`mb-8 grid gap-4 ${isAdmin ? "grid-cols-2 md:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 md:grid-cols-3 xl:grid-cols-5"}`}>
         <KpiCard
           label="Campaigns"
           value={String(totals.campaigns)}
@@ -77,14 +79,16 @@ function Dashboard() {
           icon={<RadioTower className="h-5 w-5" />}
           tone="primary"
         />
-        <KpiCard
-          label="Budget"
-          value={totalBudget > 0 ? `$${totalBudget.toLocaleString()}` : "$0"}
-          hint="Active campaigns"
-          to="/activity"
-          icon={<PieChart className="h-5 w-5" />}
-          tone="teal"
-        />
+        {isAdmin && (
+          <KpiCard
+            label="Budget"
+            value={totalBudget > 0 ? `$${totalBudget.toLocaleString()}` : "$0"}
+            hint="Active campaigns"
+            to="/activity"
+            icon={<PieChart className="h-5 w-5" />}
+            tone="teal"
+          />
+        )}
         <KpiCard
           label="Marketing Spend"
           value={`$${totals.spend.toLocaleString()}`}

@@ -62,7 +62,21 @@ function ActivityPage() {
   // Edit Activity State
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
-  const campaignOptions = campaigns.map((c) => c.name);
+  const isElevatedRole = currentUser?.role === "admin" || currentUser?.role === "super_admin";
+
+  // Filter Branches: Admins see all; Marketers & Managers only see their assigned branch
+  const availableBranches = isElevatedRole
+    ? branches
+    : (currentUser?.branchId ? branches.filter((b) => b.id === currentUser.branchId) : branches);
+
+  // Filter Campaigns: Admins see all; Marketers & Managers only see their assigned campaign
+  const availableCampaigns = isElevatedRole
+    ? campaigns
+    : (currentUser?.campaignId || (currentUser as any)?.campaignName
+        ? campaigns.filter((c) => c.id === currentUser?.campaignId || c.name === (currentUser as any)?.campaignName)
+        : campaigns);
+
+  const campaignOptions = availableCampaigns.map((c) => c.name);
 
   // Proof Upload State
   const [proofMode, setProofMode] = useState<"url" | "upload">("url");
@@ -92,9 +106,9 @@ function ActivityPage() {
   const resetForm = () => {
     setEditingActivity(null);
     setForm({
-      campaign: "",
+      campaign: !isElevatedRole && (currentUser as any)?.campaignName ? (currentUser as any)?.campaignName : (campaignOptions[0] || ""),
       channel: "",
-      branchId: "",
+      branchId: !isElevatedRole && currentUser?.branchId ? currentUser.branchId : (availableBranches[0]?.id || ""),
       proofUrl: "",
       publishedLink: "",
       content: "",
@@ -320,7 +334,7 @@ function ActivityPage() {
                       onChange={(e) => setForm({ ...form, branchId: e.target.value })}
                     >
                       <option value="">-- Select Branch --</option>
-                      {branches.map((b) => (
+                      {availableBranches.map((b) => (
                         <option key={b.id} value={b.id}>
                           {b.name}
                         </option>

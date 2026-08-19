@@ -10,6 +10,7 @@ import { useStore, Campaign, Branch } from "@/lib/store";
 import { WORKSPACE } from "@/lib/mock-data";
 import { ShieldCheck, UserCheck, Users, ShieldAlert, Plus, Building, Megaphone, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { useEffect } from "react";
 import {
   createCampaignApi,
   updateCampaignApi,
@@ -17,6 +18,8 @@ import {
   createBranchApi,
   updateBranchApi,
   deleteBranchApi,
+  getOrgSettingsApi,
+  updateOrgSettingsApi,
 } from "@/lib/api";
 import {
   Dialog,
@@ -40,6 +43,42 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const { currentUser, members, branches, memberById, campaigns, refreshData } = useStore();
+
+  // Cross-Branch Notification Settings State
+  const [allowCrossBranch, setAllowCrossBranch] = useState(false);
+  const [loadingOrgSettings, setLoadingOrgSettings] = useState(true);
+  const [updatingCrossBranch, setUpdatingCrossBranch] = useState(false);
+
+  useEffect(() => {
+    getOrgSettingsApi()
+      .then((res) => {
+        setAllowCrossBranch(Boolean(res.allowCrossBranchNotifications));
+      })
+      .catch((err) => {
+        console.error("Failed to load org settings:", err);
+      })
+      .finally(() => {
+        setLoadingOrgSettings(false);
+      });
+  }, []);
+
+  const handleToggleCrossBranch = async (checked: boolean) => {
+    setUpdatingCrossBranch(true);
+    setAllowCrossBranch(checked);
+    try {
+      await updateOrgSettingsApi({ allowCrossBranchNotifications: checked });
+      toast.success(
+        checked
+          ? "Cross-Branch Notifications turned ON! Events will now notify team members across all branches."
+          : "Cross-Branch Notifications turned OFF! Notifications are now restricted to branch members."
+      );
+    } catch (err: any) {
+      setAllowCrossBranch(!checked);
+      toast.error(err.message || "Failed to update notification preferences.");
+    } finally {
+      setUpdatingCrossBranch(false);
+    }
+  };
 
   // Campaign State
   const [newCampaignName, setNewCampaignName] = useState("");
@@ -464,17 +503,61 @@ function SettingsPage() {
         </div>
       </section>
 
-      {/* Preferences */}
-      <section className="rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="text-sm font-semibold">Notifications & Workspace Preferences</div>
-        <div className="mt-4 space-y-3">
+      {/* Preferences & Cross-Branch Notifications */}
+      <section className="rounded-2xl border bg-card p-6 shadow-sm space-y-5">
+        <div>
+          <div className="text-base font-bold text-foreground">Notifications & Workspace Preferences</div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Configure how automatic event notifications (Activity Logs, Leads, Assets, Approvals & Tasks) are distributed across your workspace instance.
+          </p>
+        </div>
+
+        {/* Cross-Branch Global Notification Switch */}
+        <div className="rounded-2xl border bg-muted/30 p-4 sm:p-5 space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-foreground">Cross-Branch Global Notifications</span>
+                <Badge
+                  variant="outline"
+                  className={
+                    allowCrossBranch
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold"
+                      : "bg-muted text-muted-foreground border-border text-[10px] font-bold"
+                  }
+                >
+                  {allowCrossBranch ? "CROSS-BRANCH ENABLED" : "BRANCH ISOLATED (DEFAULT)"}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {allowCrossBranch
+                  ? "ON: When any activity, lead, asset, or approval is recorded, notifications are broadcast to all team members across every branch in this organization instance."
+                  : "OFF (Default): Notifications are strictly isolated. Team members will only receive notifications for events originating within their own branch (Admins receive all notifications)."}
+              </p>
+            </div>
+            {isAdmin ? (
+              <Switch
+                checked={allowCrossBranch}
+                disabled={updatingCrossBranch || loadingOrgSettings}
+                onCheckedChange={handleToggleCrossBranch}
+                className="shrink-0 mt-1"
+              />
+            ) : (
+              <Badge variant="outline" className="text-[11px] text-muted-foreground shrink-0">
+                Admin Only Setting
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-2">
           {[
             { label: "In-app notifications for activity logs", on: true },
             { label: "Email notifications for new assignments", on: true },
             { label: "Real-time updates for approvals", on: true },
           ].map((row) => (
-            <div key={row.label} className="flex items-center justify-between">
-              <span className="text-sm">{row.label}</span>
+            <div key={row.label} className="flex items-center justify-between py-1">
+              <span className="text-xs font-medium text-foreground">{row.label}</span>
               <Switch defaultChecked={row.on} />
             </div>
           ))}

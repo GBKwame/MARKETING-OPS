@@ -28,6 +28,7 @@ export const organizations = mysqlTable("organizations", {
   ownerEmail: varchar("owner_email", { length: 255 }),
   ownerName: varchar("owner_name", { length: 255 }),
   status: orgStatusEnum.notNull().default("active"),
+  allowCrossBranchNotifications: boolean("allow_cross_branch_notifications").notNull().default(false),
   createdAt: datetime("created_at").$defaultFn(() => new Date()),
 });
 

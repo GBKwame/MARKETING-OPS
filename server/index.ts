@@ -1214,9 +1214,24 @@ app.get("/api/activities", async (req, res) => {
       .leftJoin(branches, eq(activities.branchId, branches.id))
       .leftJoin(users, eq(activities.memberId, users.id));
 
-    const rows = user?.role === "super_admin"
-      ? await baseQuery.orderBy(desc(activities.date))
-      : await baseQuery.where(eq(activities.organizationId, orgId)).orderBy(desc(activities.date));
+    let rows;
+    if (user?.role === "super_admin") {
+      rows = await baseQuery.orderBy(desc(activities.date));
+    } else if (user?.role === "admin") {
+      rows = await baseQuery.where(eq(activities.organizationId, orgId)).orderBy(desc(activities.date));
+    } else if (user?.branchId) {
+      // Enforce strict Branch Isolation for Marketer & Manager
+      rows = await baseQuery
+        .where(
+          and(
+            eq(activities.organizationId, orgId),
+            sql`(${activities.branchId} = ${user.branchId} OR ${activities.memberId} = ${user.id} OR ${activities.branchId} IS NULL)`
+          )
+        )
+        .orderBy(desc(activities.date));
+    } else {
+      rows = await baseQuery.where(eq(activities.organizationId, orgId)).orderBy(desc(activities.date));
+    }
 
     const formatted = rows.map((r) => ({
       ...r.activity,
@@ -1263,16 +1278,14 @@ app.post("/api/activities", async (req, res) => {
     };
     await db.insert(activities).values(newAct);
 
-    // Create notification
-    await db.insert(notifications).values({
-      id: "notif-" + Date.now(),
+    // Dispatch automatic notification
+    await dispatchEventNotification({
       organizationId: orgId,
-      userId: user?.id || body.memberId || "u-admin",
+      branchId: targetBranchId,
       title: "New Activity Logged",
-      body: `Log created: ${newAct.campaign} on ${newAct.channel}`,
-      read: false,
+      body: `${user?.name || "A team member"} logged activity for ${newAct.campaign} (${newAct.channel})`,
       kind: "activity",
-      createdAt: new Date(),
+      excludeUserId: user?.id,
     });
 
     return res.json(newAct);
@@ -1357,9 +1370,24 @@ app.get("/api/todos", async (req, res) => {
   try {
     const user = await getAuthUser(req);
     const orgId = user?.organizationId || "org-default";
-    const rows = user?.role === "super_admin"
-      ? await db.select().from(todos).orderBy(desc(todos.createdAt))
-      : await db.select().from(todos).where(eq(todos.organizationId, orgId)).orderBy(desc(todos.createdAt));
+    let rows;
+    if (user?.role === "super_admin") {
+      rows = await db.select().from(todos).orderBy(desc(todos.createdAt));
+    } else if (user?.role === "admin") {
+      rows = await db.select().from(todos).where(eq(todos.organizationId, orgId)).orderBy(desc(todos.createdAt));
+    } else {
+      // Marketer & Manager only see tasks assigned to them or created by them
+      rows = await db
+        .select()
+        .from(todos)
+        .where(
+          and(
+            eq(todos.organizationId, orgId),
+            sql`(${todos.assigneeId} = ${user?.id} OR ${todos.createdById} = ${user?.id})`
+          )
+        )
+        .orderBy(desc(todos.createdAt));
+    }
     return res.json(rows);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -1384,6 +1412,16 @@ app.post("/api/todos", async (req, res) => {
       createdAt: new Date(),
     };
     await db.insert(todos).values(newTodo);
+
+    await dispatchEventNotification({
+      organizationId: orgId,
+      branchId: user?.branchId || null,
+      title: "New Task Assigned",
+      body: `Task "${title}" created by ${user?.name || "Team Member"}`,
+      kind: "todo",
+      excludeUserId: user?.id,
+    });
+
     return res.json(newTodo);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -1413,9 +1451,24 @@ app.get("/api/approvals", async (req, res) => {
   try {
     const user = await getAuthUser(req);
     const orgId = user?.organizationId || "org-default";
-    const rows = user?.role === "super_admin"
-      ? await db.select().from(approvals).orderBy(desc(approvals.submittedAt))
-      : await db.select().from(approvals).where(eq(approvals.organizationId, orgId)).orderBy(desc(approvals.submittedAt));
+    let rows;
+    if (user?.role === "super_admin") {
+      rows = await db.select().from(approvals).orderBy(desc(approvals.submittedAt));
+    } else if (user?.role === "admin") {
+      rows = await db.select().from(approvals).where(eq(approvals.organizationId, orgId)).orderBy(desc(approvals.submittedAt));
+    } else {
+      // Marketer & Manager only see approvals submitted by them or submitted by users in their branch
+      rows = await db
+        .select()
+        .from(approvals)
+        .where(
+          and(
+            eq(approvals.organizationId, orgId),
+            sql`(${approvals.submittedById} = ${user?.id} OR ${approvals.submittedById} IN (SELECT id FROM users WHERE branch_id = ${user?.branchId || ''}))`
+          )
+        )
+        .orderBy(desc(approvals.submittedAt));
+    }
     return res.json(rows);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -1444,15 +1497,13 @@ app.post("/api/approvals", async (req, res) => {
 
     await db.insert(approvals).values(newApproval);
 
-    await db.insert(notifications).values({
-      id: "notif-" + Date.now(),
+    await dispatchEventNotification({
       organizationId: orgId,
-      userId: user?.id || "u-admin",
-      title: "New Item Submitted for Approval",
-      body: `"${title}" submitted by ${user?.name || "Team Member"}.`,
-      read: false,
+      branchId: user?.branchId || null,
+      title: "New Approval Request",
+      body: `"${title}" submitted for approval by ${user?.name || "Team Member"}.`,
       kind: "approval",
-      createdAt: new Date(),
+      excludeUserId: user?.id,
     });
 
     return res.json(newApproval);
@@ -1498,18 +1549,13 @@ app.patch("/api/approvals/:id", async (req, res) => {
       await db.insert(assets).values(newAsset).catch((e) => console.log("Asset notice:", e));
     }
 
-    if (item?.submittedById) {
-      await db.insert(notifications).values({
-        id: "notif-" + Date.now(),
-        organizationId: user.organizationId || "org-default",
-        userId: item.submittedById,
-        title: status === "approved" ? "Submission Approved 🎉" : "Submission Rejected ❌",
-        body: `Your submission "${item.title}" was ${status} by ${user.name}.`,
-        read: false,
-        kind: "approval",
-        createdAt: new Date(),
-      });
-    }
+    await dispatchEventNotification({
+      organizationId: user.organizationId || "org-default",
+      branchId: user.branchId || null,
+      title: status === "approved" ? "Submission Approved 🎉" : "Submission Rejected ❌",
+      body: `Submission "${item?.title || 'Item'}" was ${status} by ${user.name}.`,
+      kind: "approval",
+    });
 
     return res.json({ success: true, status });
   } catch (err: any) {
@@ -1525,7 +1571,6 @@ app.delete("/api/approvals/:id", async (req, res) => {
       return res.status(403).json({ error: "Only Admins and Managers can delete approvals." });
     }
     const { id } = req.params;
-    // Disassociate any referenced asset approvalId safely to prevent foreign key error
     await db.update(assets).set({ approvalId: null }).where(eq(assets.approvalId, id));
     await db.delete(approvals).where(eq(approvals.id, id));
     return res.json({ success: true, id });
@@ -1575,6 +1620,16 @@ app.post("/api/assets", async (req, res) => {
     };
 
     await db.insert(assets).values(newAsset);
+
+    await dispatchEventNotification({
+      organizationId: user.organizationId || "org-default",
+      branchId: user.branchId || null,
+      title: "New Marketing Asset Added",
+      body: `${user.name} shared a new asset: "${title}" (${type})`,
+      kind: "activity",
+      excludeUserId: user.id,
+    });
+
     return res.json(newAsset);
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -1613,9 +1668,24 @@ app.get("/api/leads", async (req, res) => {
       .leftJoin(branches, eq(leads.branchId, branches.id))
       .leftJoin(users, eq(leads.assignedToId, users.id));
 
-    const rows = user?.role === "super_admin"
-      ? await baseQuery.orderBy(desc(leads.createdAt))
-      : await baseQuery.where(eq(leads.organizationId, orgId)).orderBy(desc(leads.createdAt));
+    let rows;
+    if (user?.role === "super_admin") {
+      rows = await baseQuery.orderBy(desc(leads.createdAt));
+    } else if (user?.role === "admin") {
+      rows = await baseQuery.where(eq(leads.organizationId, orgId)).orderBy(desc(leads.createdAt));
+    } else if (user?.branchId) {
+      // Enforce strict Branch Isolation for Marketer & Manager
+      rows = await baseQuery
+        .where(
+          and(
+            eq(leads.organizationId, orgId),
+            sql`(${leads.branchId} = ${user.branchId} OR ${leads.assignedToId} = ${user.id} OR ${leads.branchId} IS NULL)`
+          )
+        )
+        .orderBy(desc(leads.createdAt));
+    } else {
+      rows = await baseQuery.where(eq(leads.organizationId, orgId)).orderBy(desc(leads.createdAt));
+    }
 
     const formatted = rows.map((r) => ({
       ...r.lead,
@@ -1657,6 +1727,17 @@ app.post("/api/leads", async (req, res) => {
     };
 
     await db.insert(leads).values(newLead);
+
+    // Dispatch automatic notification
+    await dispatchEventNotification({
+      organizationId: orgId,
+      branchId: newLead.branchId,
+      title: "New Lead Recorded",
+      body: `${user?.name || "A team member"} captured lead: ${newLead.name} (${newLead.campaign})`,
+      kind: "activity",
+      excludeUserId: user?.id,
+    });
+
     return res.json(newLead);
   } catch (err: any) {
     console.error("Create lead error:", err);
@@ -1810,6 +1891,107 @@ async function sendSmtpEmail({ to, subject, html }: { to: string | string[]; sub
   }
   return false;
 }
+
+// Helper function to dispatch automatic event notifications (with branch isolation & cross-branch admin toggle)
+async function dispatchEventNotification({
+  organizationId,
+  branchId,
+  title,
+  body,
+  kind = "activity",
+  excludeUserId,
+}: {
+  organizationId: string;
+  branchId?: string | null;
+  title: string;
+  body: string;
+  kind?: "activity" | "todo" | "approval";
+  excludeUserId?: string;
+}) {
+  try {
+    const targetOrgId = organizationId || "org-default";
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, targetOrgId));
+    const isCrossBranch = Boolean((org as any)?.allowCrossBranchNotifications);
+
+    const orgUsers = await db.select().from(users).where(eq(users.organizationId, targetOrgId));
+    let targetUsers = orgUsers;
+
+    if (!isCrossBranch && branchId) {
+      targetUsers = orgUsers.filter(
+        (u) =>
+          u.branchId === branchId ||
+          u.role === "admin" ||
+          u.role === "super_admin"
+      );
+    }
+
+    if (excludeUserId) {
+      targetUsers = targetUsers.filter((u) => u.id !== excludeUserId);
+    }
+
+    const newNotifications = targetUsers.map((u) => ({
+      id: "notif-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+      organizationId: targetOrgId,
+      userId: u.id,
+      title,
+      body,
+      read: false,
+      kind: kind as any,
+      createdAt: new Date(),
+    }));
+
+    if (newNotifications.length > 0) {
+      await db.insert(notifications).values(newNotifications);
+    }
+  } catch (err: any) {
+    console.error("❌ Notification dispatch error:", err.message || err);
+  }
+}
+
+// ------------------------------------------------------------------
+// ORGANIZATION SETTINGS (CROSS-BRANCH NOTIFICATIONS TOGGLE)
+// ------------------------------------------------------------------
+app.get("/api/organization/settings", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) return res.status(401).json({ error: "Authentication required" });
+
+    const targetOrgId = user.organizationId || "org-default";
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, targetOrgId));
+
+    return res.json({
+      organizationId: targetOrgId,
+      allowCrossBranchNotifications: Boolean((org as any)?.allowCrossBranchNotifications),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/organization/settings", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) return res.status(401).json({ error: "Authentication required" });
+    if (user.role !== "admin" && user.role !== "super_admin") {
+      return res.status(403).json({ error: "Only Organization Admins can modify notification preferences." });
+    }
+
+    const { allowCrossBranchNotifications } = req.body;
+    const targetOrgId = user.organizationId || "org-default";
+
+    await db.update(organizations).set({
+      allowCrossBranchNotifications: Boolean(allowCrossBranchNotifications),
+    }).where(eq(organizations.id, targetOrgId));
+
+    return res.json({
+      success: true,
+      allowCrossBranchNotifications: Boolean(allowCrossBranchNotifications),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 // ------------------------------------------------------------------
 // WORKSPACE REQUESTS (ADMIN APPLICANT -> SUPER ADMIN APPROVAL)
@@ -2308,6 +2490,7 @@ async function initDbSchema() {
     try { await db.execute(sql`ALTER TABLE leads ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
     try { await db.execute(sql`ALTER TABLE company_links ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
     try { await db.execute(sql`ALTER TABLE notifications ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }
+    try { await db.execute(sql`ALTER TABLE organizations ADD COLUMN allow_cross_branch_notifications TINYINT(1) NOT NULL DEFAULT 0`); } catch { }
 
     // Ensure default organization exists
     const [existingOrg] = await db.select().from(organizations).where(eq(organizations.id, "org-default"));

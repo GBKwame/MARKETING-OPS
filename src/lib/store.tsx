@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 import {
   getMeApi,
   logoutApi,
@@ -311,6 +312,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadAllData();
+
+    // 10-second periodic background notification polling for instant live updates & browser push alerts
+    const interval = setInterval(async () => {
+      try {
+        const notifs = await getNotificationsApi().catch(() => null);
+        if (notifs && Array.isArray(notifs)) {
+          const formatted = notifs.map((n: any) => ({
+            ...n,
+            body: n.message || n.body || "",
+          }));
+
+          setNotifications((prev) => {
+            const prevIds = new Set(prev.map((p) => p.id));
+            const newArrived = formatted.filter((n) => !prevIds.has(n.id) && !n.read);
+
+            // Trigger browser notification & toast for new incoming events
+            newArrived.forEach((n) => {
+              toast.info(n.title, { description: n.body });
+              if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                  new Notification(n.title, {
+                    body: n.body,
+                    icon: "/favicon.svg",
+                  });
+                } catch (e) {}
+              }
+            });
+
+            return formatted;
+          });
+        }
+      } catch (e) {}
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [loadAllData]);
 
   const logout = useCallback(async () => {

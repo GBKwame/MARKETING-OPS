@@ -1,12 +1,25 @@
 {
-  "name": "MarketOps",
+  "name": "MarketOps — Marketing Operations Platform",
   "short_name": "MarketOps",
-  "description": "Marketing operations platform for distributed teams",
+  "description": "Multi-tenant SaaS Marketing Operations & Performance Management Platform",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#7c5cff",
+  "orientation": "portrait-primary",
+  "background_color": "#090d16",
+  "theme_color": "#4f46e5",
   "icons": [
-    { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" }
-  ]
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["business", "productivity", "marketing"]
 }

@@ -99,9 +99,23 @@ function LeadsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const campaignOptions = campaigns.map((c) => c.name);
-  const defaultMember = members[0]?.id || "u-admin";
-  const defaultBranch = branches[0]?.id || "";
+  const isElevatedRole = currentUser?.role === "admin" || currentUser?.role === "super_admin";
+
+  // Filter Branches: Admins see all; Marketers & Managers only see their assigned branch
+  const availableBranches = isElevatedRole
+    ? branches
+    : (currentUser?.branchId ? branches.filter((b) => b.id === currentUser.branchId) : branches);
+
+  // Filter Campaigns: Admins see all; Marketers & Managers only see their assigned campaign
+  const availableCampaigns = isElevatedRole
+    ? campaigns
+    : (currentUser?.campaignId || (currentUser as any)?.campaignName
+        ? campaigns.filter((c) => c.id === currentUser?.campaignId || c.name === (currentUser as any)?.campaignName)
+        : campaigns);
+
+  const campaignOptions = availableCampaigns.map((c) => c.name);
+  const defaultMember = currentUser?.id || members[0]?.id || "u-admin";
+  const defaultBranch = !isElevatedRole && currentUser?.branchId ? currentUser.branchId : (availableBranches[0]?.id || "");
 
   // Dynamic Contact State
   const [contactType, setContactType] = useState<"phone" | "email" | "social">("phone");
@@ -130,7 +144,7 @@ function LeadsPage() {
     setForm({
       name: "",
       contact: "",
-      campaign: "",
+      campaign: !isElevatedRole && (currentUser as any)?.campaignName ? (currentUser as any)?.campaignName : (campaignOptions[0] || ""),
       channel: "",
       assignedToId: defaultMember,
       branchId: defaultBranch,
@@ -427,7 +441,6 @@ function LeadsPage() {
                     {campaignOptions.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
-                    <option value="General">General / Direct</option>
                   </select>
                 </div>
                 <div>
@@ -512,7 +525,7 @@ function LeadsPage() {
                     onChange={(e) => setForm({ ...form, branchId: e.target.value })}
                   >
                     <option value="">Select Branch</option>
-                    {branches.map((b) => (
+                    {availableBranches.map((b) => (
                       <option key={b.id} value={b.id}>{b.name}</option>
                     ))}
                   </select>
