@@ -18,6 +18,7 @@ export const notificationKindEnum = mysqlEnum(["activity", "todo", "approval"]);
 export const campaignStatusEnum = mysqlEnum(["active", "paused", "completed"]);
 export const invitationStatusEnum = mysqlEnum(["pending", "accepted", "revoked"]);
 export const orgStatusEnum = mysqlEnum(["active", "suspended"]);
+export const workspaceRequestStatusEnum = mysqlEnum(["pending", "approved", "rejected"]);
 
 // --- Multi-Tenant SaaS Organizations ---
 export const organizations = mysqlTable("organizations", {
@@ -28,6 +29,21 @@ export const organizations = mysqlTable("organizations", {
   ownerName: varchar("owner_name", { length: 255 }),
   status: orgStatusEnum.notNull().default("active"),
   createdAt: datetime("created_at").$defaultFn(() => new Date()),
+});
+
+// --- Workspace Instance Requests (Pending Super Admin Approval) ---
+export const workspaceRequests = mysqlTable("workspace_requests", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  organizationName: varchar("organization_name", { length: 255 }).notNull(),
+  organizationSlug: varchar("organization_slug", { length: 128 }).notNull(),
+  applicantUserId: varchar("applicant_user_id", { length: 64 }).notNull(),
+  applicantEmail: varchar("applicant_email", { length: 255 }).notNull(),
+  applicantName: varchar("applicant_name", { length: 255 }).notNull(),
+  status: workspaceRequestStatusEnum.notNull().default("pending"),
+  rejectionReason: text("rejection_reason"),
+  processedByUserId: varchar("processed_by_user_id", { length: 64 }),
+  createdAt: datetime("created_at").$defaultFn(() => new Date()),
+  updatedAt: datetime("updated_at").$defaultFn(() => new Date()),
 });
 
 // --- Campaigns ---

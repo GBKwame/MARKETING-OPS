@@ -75,6 +75,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 import { useStore } from "@/lib/store";
 import { useRouterState, Navigate } from "@tanstack/react-router";
 
+import { WorkspaceRequestView } from "@/components/workspace-request-view";
+
 function ProtectedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const search = useRouterState({ select: (s) => s.location.search });
@@ -106,6 +108,25 @@ function ProtectedLayout() {
   }
 
   const isSuperAdmin = currentUser?.role === "super_admin" || pathname.startsWith("/super-admin");
+
+  // Check if Admin applicant needs to submit or wait for workspace request approval
+  const isUnprovisionedAdmin =
+    currentUser.role === "admin" &&
+    (!currentUser.organizationId || currentUser.organizationId === "org-default" || currentUser.organizationId === "pending-org") &&
+    !isSuperAdmin;
+
+  if (isUnprovisionedAdmin) {
+    return (
+      <SidebarProvider>
+        <div className="min-h-screen w-full bg-background flex flex-col">
+          <Topbar />
+          <main className="flex-1 px-4 pt-6 md:px-8 pb-10">
+            <WorkspaceRequestView />
+          </main>
+        </div>
+      </SidebarProvider>
+    );
+  }
 
   return (
     <SidebarProvider>

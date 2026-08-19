@@ -18,6 +18,7 @@ import {
   companyLinks,
   notifications,
   organizations,
+  workspaceRequests,
 } from "../src/db/schema";
 import { eq, desc, sql, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -171,17 +172,14 @@ app.post("/api/auth/google", async (req, res) => {
       [inv] = await db.select().from(invitations).where(eq(invitations.email, cleanEmail));
     }
 
-    const assignedRole = inv?.role || (orgId ? "admin" : "marketer");
+    const assignedRole = inv?.role || "admin";
     const assignedOrgId = inv?.organizationId || orgId || "org-default";
     const assignedBranchId = inv?.branchId || null;
     const assignedCampaignId = inv?.campaignId || null;
     const assignedSupervisorId = inv?.invitedById || null;
 
     if (!u) {
-      // Check if this is the very first user in the entire database
-      const allUsers = await db.select().from(users);
-      const isFirstUser = allUsers.length === 0;
-      const finalRole = isFirstUser ? "admin" : assignedRole;
+      const finalRole = assignedRole;
 
       const userId = "u-" + Date.now();
       const userName = name || email.split("@")[0];
@@ -340,7 +338,7 @@ app.post("/api/auth/register", async (req, res) => {
     const allUsers = await db.select().from(users);
     const isFirstUser = allUsers.length === 0;
 
-    let assignedRole: "super_admin" | "admin" | "manager" | "marketer" = inv?.role || (orgId ? "admin" : (isFirstUser ? "admin" : "marketer"));
+    let assignedRole: "super_admin" | "admin" | "manager" | "marketer" = inv?.role || "admin";
     let assignedOrgId = inv?.organizationId || orgId || "org-default";
     let assignedBranchId: string | null = inv?.branchId || null;
     let assignedCampaignId: string | null = inv?.campaignId || null;
@@ -1776,6 +1774,311 @@ app.post("/api/company-links", async (req, res) => {
   }
 });
 
+// Helper function to send email via SMTP to one or multiple recipients
+async function sendSmtpEmail({ to, subject, html }: { to: string | string[]; subject: string; html: string }) {
+  try {
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const smtpPort = Number(process.env.SMTP_PORT) || 587;
+      const isSecure = smtpPort === 465;
+      const dynamicTransporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: smtpPort,
+        secure: isSecure,
+        family: 4,
+        lookup: (hostname: string, opts: any, cb: any) => dns.lookup(hostname, { family: 4 }, cb),
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 15000,
+      } as any);
+
+      const targetRecipients = Array.isArray(to) ? to.join(",") : to;
+      await dynamicTransporter.sendMail({
+        from: `"MarketOps SaaS Platform" <${process.env.SMTP_USER}>`,
+        to: targetRecipients,
+        subject,
+        html,
+      });
+      console.log(`✉️ Email successfully sent to ${targetRecipients}`);
+      return true;
+    }
+  } catch (err: any) {
+    console.error("❌ SMTP Delivery Error:", err.message || err);
+  }
+  return false;
+}
+
+// ------------------------------------------------------------------
+// WORKSPACE REQUESTS (ADMIN APPLICANT -> SUPER ADMIN APPROVAL)
+// ------------------------------------------------------------------
+
+// 1. Submit Workspace Request (Admin applicant)
+app.post("/api/workspace-requests", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Authentication required." });
+    }
+
+    const { organizationName, organizationSlug } = req.body;
+    if (!organizationName || !organizationName.trim()) {
+      return res.status(400).json({ error: "Company / Workspace Name is required." });
+    }
+
+    const name = organizationName.trim();
+    const slug = (organizationSlug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).trim();
+
+    if (!slug) {
+      return res.status(400).json({ error: "Valid Workspace Domain Slug is required." });
+    }
+
+    // Check if slug is already registered in active organizations
+    const [existingOrg] = await db.select().from(organizations).where(eq(organizations.slug, slug));
+    if (existingOrg) {
+      return res.status(400).json({ error: `Domain slug '${slug}.marketops.app' is already registered to an active workspace.` });
+    }
+
+    // Check if user has an existing pending request
+    const [existingPending] = await db
+      .select()
+      .from(workspaceRequests)
+      .where(and(eq(workspaceRequests.applicantUserId, user.id), eq(workspaceRequests.status, "pending")));
+
+    if (existingPending) {
+      return res.status(400).json({
+        error: `You already have a pending request for '${existingPending.organizationName}'. Please wait for Super Admin review.`,
+        request: existingPending,
+      });
+    }
+
+    const requestId = "wr-" + Date.now();
+    const newRequest = {
+      id: requestId,
+      organizationName: name,
+      organizationSlug: slug,
+      applicantUserId: user.id,
+      applicantEmail: user.email,
+      applicantName: user.name,
+      status: "pending" as const,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await db.insert(workspaceRequests).values(newRequest);
+
+    // Notify ALL Super Admins via Email & In-App Notification
+    const superAdmins = await db.select().from(users).where(eq(users.role, "super_admin"));
+    const superAdminEmails = superAdmins.map((sa) => sa.email).filter(Boolean);
+
+    if (superAdminEmails.length === 0 && process.env.SMTP_USER) {
+      superAdminEmails.push(process.env.SMTP_USER);
+    }
+
+    const emailSent = await sendSmtpEmail({
+      to: superAdminEmails,
+      subject: `🚨 New Workspace Instance Request: ${name}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #4f46e5; margin-top: 0;">New Workspace Request Received</h2>
+          <p>An Admin applicant has submitted a request to provision a new MarketOps client workspace instance:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+            <tr><td style="padding: 8px; font-weight: bold;">Company Name:</td><td style="padding: 8px;">${name}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">Domain Slug:</td><td style="padding: 8px;">${slug}.marketops.app</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">Applicant Name:</td><td style="padding: 8px;">${user.name}</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">Applicant Email:</td><td style="padding: 8px;">${user.email}</td></tr>
+          </table>
+          <p style="margin-top: 20px;">
+            <a href="${getCleanOrigin(req)}/super-admin" style="background-color: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+              Review Request on Super Admin Portal
+            </a>
+          </p>
+        </div>
+      `,
+    });
+
+    for (const sa of superAdmins) {
+      await db.insert(notifications).values({
+        id: "notif-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6),
+        organizationId: "org-default",
+        userId: sa.id,
+        title: "New Workspace Request",
+        body: `"${name}" (${slug}.marketops.app) requested by ${user.email}`,
+        read: false,
+        kind: "activity",
+        createdAt: new Date(),
+      }).catch(() => {});
+    }
+
+    return res.json({ success: true, request: newRequest, emailSent });
+  } catch (err: any) {
+    console.error("Submit workspace request error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Fetch User's Request Status
+app.get("/api/workspace-requests/my-status", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      return res.status(401).json({ error: "Authentication required." });
+    }
+
+    if (user.organizationId && user.organizationId !== "org-default") {
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, user.organizationId));
+      if (org && org.status === "active") {
+        return res.json({ isApproved: true, organization: org });
+      }
+    }
+
+    const [latestRequest] = await db
+      .select()
+      .from(workspaceRequests)
+      .where(eq(workspaceRequests.applicantUserId, user.id))
+      .orderBy(desc(workspaceRequests.createdAt));
+
+    return res.json({
+      isApproved: false,
+      request: latestRequest || null,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Fetch All Workspace Requests (Super Admin Portal)
+app.get("/api/workspace-requests", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || user.role !== "super_admin") {
+      return res.status(403).json({ error: "Super Admin access required." });
+    }
+
+    const rows = await db.select().from(workspaceRequests).orderBy(desc(workspaceRequests.createdAt));
+    return res.json(rows);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. Approve Workspace Request (Super Admin)
+app.post("/api/workspace-requests/:id/approve", async (req, res) => {
+  try {
+    const superAdmin = await getAuthUser(req);
+    if (!superAdmin || superAdmin.role !== "super_admin") {
+      return res.status(403).json({ error: "Super Admin access required." });
+    }
+
+    const { id } = req.params;
+    const [request] = await db.select().from(workspaceRequests).where(eq(workspaceRequests.id, id));
+
+    if (!request) {
+      return res.status(404).json({ error: "Workspace request not found." });
+    }
+
+    if (request.status === "approved") {
+      return res.status(400).json({ error: "This request has already been approved." });
+    }
+
+    const [existingOrg] = await db.select().from(organizations).where(eq(organizations.slug, request.organizationSlug));
+    const newOrgId = existingOrg ? existingOrg.id : "org-" + Date.now();
+
+    if (!existingOrg) {
+      await db.insert(organizations).values({
+        id: newOrgId,
+        name: request.organizationName,
+        slug: request.organizationSlug,
+        ownerEmail: request.applicantEmail,
+        ownerName: request.applicantName,
+        status: "active",
+        createdAt: new Date(),
+      });
+    }
+
+    await db.update(users).set({
+      organizationId: newOrgId,
+      role: "admin",
+    }).where(eq(users.id, request.applicantUserId));
+
+    await db.update(workspaceRequests).set({
+      status: "approved",
+      processedByUserId: superAdmin.id,
+      updatedAt: new Date(),
+    }).where(eq(workspaceRequests.id, id));
+
+    const emailSent = await sendSmtpEmail({
+      to: request.applicantEmail,
+      subject: `🎉 Your Workspace '${request.organizationName}' Has Been Approved!`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #10b981; margin-top: 0;">Workspace Approved! 🎉</h2>
+          <p>Great news ${request.applicantName}! Your request to provision <strong>${request.organizationName}</strong> has been approved by the platform administrator.</p>
+          <p><strong>Subdomain Slug:</strong> ${request.organizationSlug}.marketops.app</p>
+          <p style="margin-top: 24px;">
+            <a href="${getCleanOrigin(req)}/" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+              Launch Your MarketOps Workspace
+            </a>
+          </p>
+        </div>
+      `,
+    });
+
+    return res.json({ success: true, organizationId: newOrgId, emailSent });
+  } catch (err: any) {
+    console.error("Approve workspace request error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. Reject Workspace Request (Super Admin)
+app.post("/api/workspace-requests/:id/reject", async (req, res) => {
+  try {
+    const superAdmin = await getAuthUser(req);
+    if (!superAdmin || superAdmin.role !== "super_admin") {
+      return res.status(403).json({ error: "Super Admin access required." });
+    }
+
+    const { id } = req.params;
+    const { reason } = req.body || {};
+
+    const [request] = await db.select().from(workspaceRequests).where(eq(workspaceRequests.id, id));
+    if (!request) {
+      return res.status(404).json({ error: "Workspace request not found." });
+    }
+
+    const rejectionNote = reason?.trim() || "The request did not meet platform workspace guidelines.";
+
+    await db.update(workspaceRequests).set({
+      status: "rejected",
+      rejectionReason: rejectionNote,
+      processedByUserId: superAdmin.id,
+      updatedAt: new Date(),
+    }).where(eq(workspaceRequests.id, id));
+
+    const emailSent = await sendSmtpEmail({
+      to: request.applicantEmail,
+      subject: `Workspace Request Update for ${request.organizationName}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #ef4444; margin-top: 0;">Workspace Request Declined</h2>
+          <p>Hello ${request.applicantName},</p>
+          <p>Your request to provision the workspace <strong>${request.organizationName}</strong> was reviewed by a Super Admin and was not approved at this time.</p>
+          <p><strong>Reason:</strong> ${rejectionNote}</p>
+          <p>If you believe this was an error or have questions, please reach out to platform support.</p>
+        </div>
+      `,
+    });
+
+    return res.json({ success: true, emailSent });
+  } catch (err: any) {
+    console.error("Reject workspace request error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check endpoints for Railway / cloud deployments
 app.get("/health", (_req, res) => {
   return res.status(200).json({ status: "ok", timestamp: new Date() });
@@ -1975,7 +2278,23 @@ async function initDbSchema() {
       )
     `);
 
-    try { await db.execute(sql`ALTER TABLE users MODIFY COLUMN role ENUM('super_admin', 'admin', 'manager', 'marketer') NOT NULL DEFAULT 'marketer'`); } catch { }
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS workspace_requests (
+        id VARCHAR(64) PRIMARY KEY,
+        organization_name VARCHAR(255) NOT NULL,
+        organization_slug VARCHAR(128) NOT NULL,
+        applicant_user_id VARCHAR(64) NOT NULL,
+        applicant_email VARCHAR(255) NOT NULL,
+        applicant_name VARCHAR(255) NOT NULL,
+        status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+        rejection_reason TEXT,
+        processed_by_user_id VARCHAR(64),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
+    try { await db.execute(sql`ALTER TABLE users MODIFY COLUMN role ENUM('super_admin', 'admin', 'manager', 'marketer') NOT NULL DEFAULT 'admin'`); } catch { }
     try { await db.execute(sql`ALTER TABLE invitations MODIFY COLUMN role ENUM('super_admin', 'admin', 'manager', 'marketer') NOT NULL`); } catch { }
 
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN organization_id VARCHAR(64) NOT NULL DEFAULT 'org-default'`); } catch { }

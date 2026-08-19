@@ -35,13 +35,19 @@ export function Topbar() {
     navigate({ to: "/login" });
   };
 
+  const isUnprovisionedAdmin =
+    currentUser?.role === "admin" &&
+    (!currentUser.organizationId || currentUser.organizationId === "org-default" || currentUser.organizationId === "pending-org");
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur transition-all">
       {/* Left Section: Sidebar Toggle + Global Search */}
       <div className="flex items-center gap-3">
-        <SidebarTrigger className="h-9 w-9 border bg-background hover:bg-muted" />
+        {!isUnprovisionedAdmin && (
+          <SidebarTrigger className="h-9 w-9 border bg-background hover:bg-muted" />
+        )}
 
-        {currentUser?.role !== "super_admin" && (
+        {currentUser?.role !== "super_admin" && !isUnprovisionedAdmin && (
           <div className="relative w-64 sm:w-80 md:w-96">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input

@@ -322,3 +322,35 @@ export async function updateOrgStatusApi(id: string, status: "active" | "suspend
     body: JSON.stringify({ status }),
   });
 }
+
+// Workspace Instance Requests
+export async function submitWorkspaceRequestApi(data: {
+  organizationName: string;
+  organizationSlug?: string;
+}) {
+  return fetchApi<{ success: boolean; request: any; emailSent: boolean }>("/api/workspace-requests", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getMyWorkspaceRequestStatusApi() {
+  return fetchApi<{ isApproved: boolean; request?: any; organization?: any }>("/api/workspace-requests/my-status");
+}
+
+export async function getWorkspaceRequestsApi() {
+  return fetchApi<any[]>("/api/workspace-requests");
+}
+
+export async function approveWorkspaceRequestApi(id: string) {
+  return fetchApi<{ success: boolean; organizationId: string; emailSent: boolean }>(`/api/workspace-requests/${id}/approve`, {
+    method: "POST",
+  });
+}
+
+export async function rejectWorkspaceRequestApi(id: string, reason?: string) {
+  return fetchApi<{ success: boolean; emailSent: boolean }>(`/api/workspace-requests/${id}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
