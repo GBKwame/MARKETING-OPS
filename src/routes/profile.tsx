@@ -9,8 +9,8 @@ import { useStore } from "@/lib/store";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "User Profile — MarketOps" },
-      { name: "description", content: "View and manage your MarketOps user profile." },
+      { title: "User Profile — Zexpand" },
+      { name: "description", content: "View and manage your Zexpand user profile." },
     ],
   }),
   component: ProfilePage,

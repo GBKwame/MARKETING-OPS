@@ -18,9 +18,9 @@ import { Badge } from "@/components/ui/badge";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — MarketOps" },
+      { title: "Dashboard — Zexpand" },
       { name: "description", content: "KPI overview across campaigns, spend, leads, and conversions." },
-      { property: "og:title", content: "MarketOps Dashboard" },
+      { property: "og:title", content: "Zexpand Dashboard" },
       { property: "og:description", content: "Marketing operations at a glance." },
     ],
   }),

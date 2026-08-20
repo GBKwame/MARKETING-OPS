@@ -213,7 +213,7 @@ function LoginPage() {
 
       if (res.user) {
         setCurrentUser(res.user);
-        toast.success(`Account created! Welcome to MarketOps, ${res.user.name}!`);
+        toast.success(`Account created! Welcome to Zexpand, ${res.user.name}!`);
         await refreshData();
         navigate({ to: "/" });
       }
@@ -234,12 +234,15 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-md space-y-5">
         {/* Header */}
-        <div className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md">
-            <Sparkles className="h-6 w-6" />
+        <div className="text-center space-y-2">
+          <div className="mx-auto h-20 w-20 overflow-hidden rounded-2xl border border-amber-500/30 bg-black p-1 shadow-lg ring-4 ring-primary/10">
+            <img src="/logo.jpg" alt="ZEXPAND" className="h-full w-full object-cover rounded-xl" />
           </div>
-          <h1 className="mt-3 text-2xl font-bold tracking-tight">MarketOps</h1>
-          <p className="text-sm text-muted-foreground">Marketing Operations & Team Workspace</p>
+          <div className="pt-1">
+            <h1 className="text-2xl font-black tracking-widest text-foreground">ZEXPAND</h1>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-amber-500/90 mt-0.5">TRACK . MANAGE . GROW</p>
+          </div>
+          <p className="text-xs text-muted-foreground">Marketing Operations & Team Workspace</p>
         </div>
 
         {/* Invitation Welcome Banner */}

@@ -603,19 +603,19 @@ app.post("/api/organizations", async (req, res) => {
       } as any);
 
       const mailOptions = {
-        from: process.env.SMTP_FROM || `"MarketOps SaaS" <${process.env.SMTP_USER || "no-reply@marketops.app"}>`,
+        from: process.env.SMTP_FROM || `"Zexpand SaaS" <${process.env.SMTP_USER || "no-reply@zexpand.app"}>`,
         to: cleanEmail,
-        subject: `🚀 Welcome to MarketOps — Your Workspace Instance for ${name.trim()} is Ready!`,
+        subject: `🚀 Welcome to Zexpand — Your Workspace Instance for ${name.trim()} is Ready!`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background-color: #ffffff;">
             <div style="text-align: center; margin-bottom: 20px;">
-              <h2 style="color: #0f172a; margin: 0;">MarketOps SaaS</h2>
+              <h2 style="color: #0f172a; margin: 0;">Zexpand SaaS</h2>
               <p style="color: #64748b; font-size: 14px; margin-top: 4px;">Client Workspace Instance Provisioned</p>
             </div>
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
             <p style="font-size: 15px; color: #334155;">Hello,</p>
             <p style="font-size: 15px; color: #334155; line-height: 1.6;">
-              Your new MarketOps workspace instance for <strong>${name.trim()}</strong> (<code>${slug}.marketops.app</code>) has been successfully created!
+              Your new Zexpand workspace instance for <strong>${name.trim()}</strong> (<code>${slug}.zexpand.app</code>) has been successfully created!
             </p>
             <p style="font-size: 15px; color: #334155; line-height: 1.6;">
               Click the button below to complete your registration as the Workspace Admin:
@@ -630,7 +630,7 @@ app.post("/api/organizations", async (req, res) => {
             </p>
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
             <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
-              MarketOps SaaS — Isolated Workspace Management
+              Zexpand SaaS — Isolated Workspace Management
             </p>
           </div>
         `,
@@ -682,8 +682,8 @@ app.patch("/api/organizations/:id/status", async (req, res) => {
     if (targetEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
       const isSuspended = status === "suspended";
       const subject = isSuspended
-        ? `⚠️ Important Notice: MarketOps Workspace [${org.name}] Suspended`
-        : `✅ Workspace Reactivated: MarketOps [${org.name}] is Active`;
+        ? `⚠️ Important Notice: Zexpand Workspace [${org.name}] Suspended`
+        : `✅ Workspace Reactivated: Zexpand [${org.name}] is Active`;
 
       const html = isSuspended
         ? `
@@ -691,13 +691,13 @@ app.patch("/api/organizations/:id/status", async (req, res) => {
             <h2 style="color: #dc2626; margin-top: 0;">Workspace Suspended</h2>
             <p style="color: #334155; font-size: 15px;">Hello,</p>
             <p style="color: #334155; font-size: 15px; line-height: 1.6;">
-              Please be advised that your MarketOps workspace <strong>${org.name}</strong> (<code>${org.slug}.marketops.app</code>) has been <strong>suspended</strong> by the platform administrator.
+              Please be advised that your Zexpand workspace <strong>${org.name}</strong> (<code>${org.slug}.zexpand.app</code>) has been <strong>suspended</strong> by the platform administrator.
             </p>
             <p style="color: #64748b; font-size: 13px; line-height: 1.6;">
               All team members under this workspace will be temporarily unable to log in until reactivated. If you believe this is an error, please reach out to platform support.
             </p>
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">MarketOps SaaS Management</p>
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">Zexpand SaaS Management</p>
           </div>
         `
         : `
@@ -705,13 +705,13 @@ app.patch("/api/organizations/:id/status", async (req, res) => {
             <h2 style="color: #059669; margin-top: 0;">Workspace Reactivated</h2>
             <p style="color: #334155; font-size: 15px;">Hello,</p>
             <p style="color: #334155; font-size: 15px; line-height: 1.6;">
-              Great news! Your MarketOps workspace <strong>${org.name}</strong> (<code>${org.slug}.marketops.app</code>) has been <strong>reactivated</strong>.
+              Great news! Your Zexpand workspace <strong>${org.name}</strong> (<code>${org.slug}.zexpand.app</code>) has been <strong>reactivated</strong>.
             </p>
             <p style="color: #64748b; font-size: 13px; line-height: 1.6;">
               You and your team can now log back in and resume full operations.
             </p>
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">MarketOps SaaS Management</p>
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">Zexpand SaaS Management</p>
           </div>
         `;
 
@@ -729,7 +729,7 @@ app.patch("/api/organizations/:id/status", async (req, res) => {
 
       try {
         await dynamicTransporter.sendMail({
-          from: process.env.SMTP_FROM || `"MarketOps SaaS" <${process.env.SMTP_USER}>`,
+          from: process.env.SMTP_FROM || `"Zexpand SaaS" <${process.env.SMTP_USER}>`,
           to: targetEmail,
           subject,
           html,
@@ -1012,15 +1012,15 @@ app.post("/api/team/invite", async (req, res) => {
     const inviteLink = `${origin}/login?email=${encodeURIComponent(email)}&orgId=${userOrgId}&token=${inviteToken}`;
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || (process.env.SMTP_USER ? `"MarketOps Team" <${process.env.SMTP_USER}>` : '"MarketOps Team" <no-reply@marketops.com>'),
+      from: process.env.SMTP_FROM || (process.env.SMTP_USER ? `"Zexpand Team" <${process.env.SMTP_USER}>` : '"Zexpand Team" <no-reply@zexpand.com>'),
       to: email,
-      subject: `Invitation to Join MarketOps as ${targetRole.toUpperCase()}`,
+      subject: `Invitation to Join Zexpand as ${targetRole.toUpperCase()}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
-          <h2 style="color: #0f172a; margin-top: 0;">MarketOps Workspace Invitation</h2>
+          <h2 style="color: #0f172a; margin-top: 0;">Zexpand Workspace Invitation</h2>
           <p style="color: #475569; font-size: 14px;">Hello <strong>${name}</strong>,</p>
           <p style="color: #475569; font-size: 14px;">
-            You have been invited by <strong>${authUser.name}</strong> (${authUser.role.toUpperCase()}) to join <strong>MarketOps</strong> as a <strong>${targetRole.toUpperCase()}</strong>.
+            You have been invited by <strong>${authUser.name}</strong> (${authUser.role.toUpperCase()}) to join <strong>Zexpand</strong> as a <strong>${targetRole.toUpperCase()}</strong>.
           </p>
           <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Branch:</strong> ${branchName}</p>
@@ -1071,7 +1071,7 @@ app.post("/api/team/invite", async (req, res) => {
 
     // Build WhatsApp URL
     const rawPhone = (phone || "").replace(/[^0-9]/g, "");
-    const waText = `Hi ${name}, you've been invited by ${authUser.name} to join MarketOps as ${targetRole.toUpperCase()} for ${branchName} / ${campaignName}. Join workspace here: ${inviteLink}`;
+    const waText = `Hi ${name}, you've been invited by ${authUser.name} to join Zexpand as ${targetRole.toUpperCase()} for ${branchName} / ${campaignName}. Join workspace here: ${inviteLink}`;
     const whatsappUrl = rawPhone
       ? `https://wa.me/${rawPhone}?text=${encodeURIComponent(waText)}`
       : `https://wa.me/?text=${encodeURIComponent(waText)}`;
@@ -1878,7 +1878,7 @@ async function sendSmtpEmail({ to, subject, html }: { to: string | string[]; sub
 
       const targetRecipients = Array.isArray(to) ? to.join(",") : to;
       await dynamicTransporter.sendMail({
-        from: `"MarketOps SaaS Platform" <${process.env.SMTP_USER}>`,
+        from: `"Zexpand SaaS Platform" <${process.env.SMTP_USER}>`,
         to: targetRecipients,
         subject,
         html,
@@ -2020,7 +2020,7 @@ app.post("/api/workspace-requests", async (req, res) => {
     // Check if slug is already registered in active organizations
     const [existingOrg] = await db.select().from(organizations).where(eq(organizations.slug, slug));
     if (existingOrg) {
-      return res.status(400).json({ error: `Domain slug '${slug}.marketops.app' is already registered to an active workspace.` });
+      return res.status(400).json({ error: `Domain slug '${slug}.zexpand.app' is already registered to an active workspace.` });
     }
 
     // Check if user has an existing pending request
@@ -2065,10 +2065,10 @@ app.post("/api/workspace-requests", async (req, res) => {
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
           <h2 style="color: #4f46e5; margin-top: 0;">New Workspace Request Received</h2>
-          <p>An Admin applicant has submitted a request to provision a new MarketOps client workspace instance:</p>
+          <p>An Admin applicant has submitted a request to provision a new Zexpand client workspace instance:</p>
           <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
             <tr><td style="padding: 8px; font-weight: bold;">Company Name:</td><td style="padding: 8px;">${name}</td></tr>
-            <tr><td style="padding: 8px; font-weight: bold;">Domain Slug:</td><td style="padding: 8px;">${slug}.marketops.app</td></tr>
+            <tr><td style="padding: 8px; font-weight: bold;">Domain Slug:</td><td style="padding: 8px;">${slug}.zexpand.app</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">Applicant Name:</td><td style="padding: 8px;">${user.name}</td></tr>
             <tr><td style="padding: 8px; font-weight: bold;">Applicant Email:</td><td style="padding: 8px;">${user.email}</td></tr>
           </table>
@@ -2087,7 +2087,7 @@ app.post("/api/workspace-requests", async (req, res) => {
         organizationId: "org-default",
         userId: sa.id,
         title: "New Workspace Request",
-        body: `"${name}" (${slug}.marketops.app) requested by ${user.email}`,
+        body: `"${name}" (${slug}.zexpand.app) requested by ${user.email}`,
         read: false,
         kind: "activity",
         createdAt: new Date(),
@@ -2198,10 +2198,10 @@ app.post("/api/workspace-requests/:id/approve", async (req, res) => {
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
           <h2 style="color: #10b981; margin-top: 0;">Workspace Approved! 🎉</h2>
           <p>Great news ${request.applicantName}! Your request to provision <strong>${request.organizationName}</strong> has been approved by the platform administrator.</p>
-          <p><strong>Subdomain Slug:</strong> ${request.organizationSlug}.marketops.app</p>
+          <p><strong>Subdomain Slug:</strong> ${request.organizationSlug}.zexpand.app</p>
           <p style="margin-top: 24px;">
             <a href="${getCleanOrigin(req)}/" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-              Launch Your MarketOps Workspace
+              Launch Your Zexpand Workspace
             </a>
           </p>
         </div>

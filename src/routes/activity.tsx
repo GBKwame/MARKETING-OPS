@@ -20,7 +20,7 @@ import { CHANNELS } from "@/lib/mock-data";
 export const Route = createFileRoute("/activity")({
   head: () => ({
     meta: [
-      { title: "Marketing Activity — MarketOps" },
+      { title: "Marketing Activity — Zexpand" },
       { name: "description", content: "Every post, ad, and field visit across the team." },
       { property: "og:title", content: "Marketing Activity" },
       { property: "og:description", content: "Filter, drill in, and act on real marketing work." },

@@ -30,7 +30,7 @@ import { CHANNELS } from "@/lib/mock-data";
 export const Route = createFileRoute("/leads")({
   head: () => ({
     meta: [
-      { title: "Leads — MarketOps" },
+      { title: "Leads — Zexpand" },
       { name: "description", content: "Every lead attributed to a marketing activity." },
       { property: "og:title", content: "Leads" },
       { property: "og:description", content: "Track leads, team attribution, channels, and campaigns." },

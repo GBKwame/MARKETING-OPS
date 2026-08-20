@@ -34,9 +34,9 @@ import { useStore, type CompanyLink } from "@/lib/store";
 export const Route = createFileRoute("/company-links")({
   head: () => ({
     meta: [
-      { title: "Company Links — MarketOps" },
+      { title: "Company Links — Zexpand" },
       { name: "description", content: "Official company accounts and handles for your workspace." },
-      { property: "og:title", content: "Company Links — MarketOps" },
+      { property: "og:title", content: "Company Links — Zexpand" },
       { property: "og:description", content: "Quickly open the correct company accounts across every channel." },
     ],
   }),

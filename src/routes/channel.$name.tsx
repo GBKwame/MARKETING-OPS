@@ -21,7 +21,7 @@ export const Route = createFileRoute("/channel/$name")({
     const name = decodeURIComponent(params.name);
     return {
       meta: [
-        { title: `${name} — Destination — MarketOps` },
+        { title: `${name} — Destination — Zexpand` },
         { name: "description", content: `All marketing activity in ${name}.` },
         { property: "og:title", content: `${name} activity` },
         { property: "og:description", content: `Team breakdown and full history for ${name}.` },

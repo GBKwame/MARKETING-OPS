@@ -1,6 +1,6 @@
 {
-  "name": "MarketOps — Marketing Operations Platform",
-  "short_name": "MarketOps",
+  "name": "Zexpand — Marketing Operations Platform",
+  "short_name": "Zexpand",
   "description": "Multi-tenant SaaS Marketing Operations & Performance Management Platform",
   "start_url": "/",
   "scope": "/",
@@ -10,15 +10,10 @@
   "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/logo.jpg",
+      "sizes": "512x512 192x192 64x64",
+      "type": "image/jpeg",
       "purpose": "any maskable"
-    },
-    {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
     }
   ],
   "categories": ["business", "productivity", "marketing"]

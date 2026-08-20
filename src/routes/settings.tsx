@@ -32,10 +32,10 @@ import {
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — MarketOps" },
+      { title: "Settings — Zexpand" },
       { name: "description", content: "Workspace, team, and notification preferences." },
-      { property: "og:title", content: "MarketOps Settings" },
-      { property: "og:description", content: "Manage your MarketOps workspace." },
+      { property: "og:title", content: "Zexpand Settings" },
+      { property: "og:description", content: "Manage your Zexpand workspace." },
     ],
   }),
   component: SettingsPage,

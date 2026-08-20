@@ -120,7 +120,7 @@ export function WorkspaceRequestView({ onApproved }: { onApproved?: () => void }
             </div>
             <div className="flex justify-between items-center border-b border-border/40 pb-2">
               <span className="text-muted-foreground font-semibold">Subdomain</span>
-              <span className="font-mono font-bold text-primary">{request.organizationSlug}.marketops.app</span>
+              <span className="font-mono font-bold text-primary">{request.organizationSlug}.zexpand.app</span>
             </div>
             <div className="flex justify-between items-center border-b border-border/40 pb-2">
               <span className="text-muted-foreground font-semibold">Applicant Admin</span>
@@ -222,7 +222,7 @@ export function WorkspaceRequestView({ onApproved }: { onApproved?: () => void }
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Welcome <strong className="text-foreground">{currentUser?.name || currentUser?.email}</strong>! As an Organization Admin, fill in your company details below to request your dedicated, isolated MarketOps workspace.
+          Welcome <strong className="text-foreground">{currentUser?.name || currentUser?.email}</strong>! As an Organization Admin, fill in your company details below to request your dedicated, isolated Zexpand workspace.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -257,7 +257,7 @@ export function WorkspaceRequestView({ onApproved }: { onApproved?: () => void }
                 className="h-10 text-xs font-mono rounded-xl flex-1"
               />
               <span className="text-xs font-mono font-bold text-muted-foreground whitespace-nowrap">
-                .marketops.app
+                .zexpand.app
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground">

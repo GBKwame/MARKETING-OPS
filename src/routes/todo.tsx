@@ -22,9 +22,9 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/todo")({
   head: () => ({
     meta: [
-      { title: "To Do — MarketOps" },
+      { title: "To Do — Zexpand" },
       { name: "description", content: "Assigned future marketing activities across the team." },
-      { property: "og:title", content: "MarketOps — To Do" },
+      { property: "og:title", content: "Zexpand — To Do" },
       { property: "og:description", content: "Track upcoming marketing work by assignee and due date." },
     ],
   }),

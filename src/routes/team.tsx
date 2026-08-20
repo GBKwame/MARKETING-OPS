@@ -44,7 +44,7 @@ import { createBranchApi, createCampaignApi } from "@/lib/api";
 export const Route = createFileRoute("/team")({
   head: () => ({
     meta: [
-      { title: "Team Management — MarketOps" },
+      { title: "Team Management — Zexpand" },
       { name: "description", content: "Manage team members, branches, campaigns, invitations and role privileges." },
       { property: "og:title", content: "Team Management" },
       { property: "og:description", content: "Scoped team administration." },

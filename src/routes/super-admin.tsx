@@ -50,7 +50,7 @@ import {
 export const Route = createFileRoute("/super-admin")({
   head: () => ({
     meta: [
-      { title: "SaaS Super Admin Portal — MarketOps" },
+      { title: "SaaS Super Admin Portal — Zexpand" },
       { name: "description", content: "Standalone SaaS Super Admin Management Portal." },
     ],
   }),

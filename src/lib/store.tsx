@@ -334,7 +334,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 try {
                   new Notification(n.title, {
                     body: n.body,
-                    icon: "/favicon.svg",
+                    icon: "/logo.jpg",
                   });
                 } catch (e) {}
               }

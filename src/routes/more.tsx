@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 export const Route = createFileRoute("/more")({
   head: () => ({
     meta: [
-      { title: "More — MarketOps" },
+      { title: "More — Zexpand" },
       { name: "description", content: "Approvals, Leads, and Settings." },
     ],
   }),

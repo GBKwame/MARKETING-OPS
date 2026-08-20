@@ -22,7 +22,7 @@ import { createApprovalApi } from "@/lib/api";
 export const Route = createFileRoute("/approvals")({
   head: () => ({
     meta: [
-      { title: "Approvals — MarketOps" },
+      { title: "Approvals — Zexpand" },
       { name: "description", content: "Review and approve submitted designs, videos, and copy." },
       { property: "og:title", content: "Approvals" },
       { property: "og:description", content: "Approved items move directly into Assets." },

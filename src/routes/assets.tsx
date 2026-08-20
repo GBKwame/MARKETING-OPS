@@ -37,7 +37,7 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/assets")({
   head: () => ({
     meta: [
-      { title: "Assets — MarketOps" },
+      { title: "Assets — Zexpand" },
       { name: "description", content: "Approved, company-owned marketing materials." },
       { property: "og:title", content: "Marketing Assets" },
       { property: "og:description", content: "One-click copy for text, downloads for media." },

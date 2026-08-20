@@ -59,24 +59,14 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border/60">
       <SidebarHeader className="border-b border-border/60">
         <Link to={isSuperAdmin ? "/super-admin" : "/"} className="flex items-center gap-2.5 px-2 py-2">
-          {/* Custom MarketOps Geometric Pulse Logo SVG */}
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
+          {/* Custom Zexpand Logo */}
+          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-amber-500/30 bg-black shadow-sm">
+            <img src="/logo.jpg" alt="Zexpand Logo" className="h-full w-full object-cover" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="truncate text-sm font-bold tracking-tight">MarketOps</div>
-              <div className="truncate text-[11px] text-muted-foreground">
+              <div className="truncate text-sm font-black tracking-wider text-foreground">ZEXPAND</div>
+              <div className="truncate text-[10px] font-semibold text-muted-foreground">
                 {currentUser?.organizationName || WORKSPACE}
               </div>
             </div>

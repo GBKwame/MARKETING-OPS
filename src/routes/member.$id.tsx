@@ -9,7 +9,7 @@ import { useStore } from "@/lib/store";
 export const Route = createFileRoute("/member/$id")({
   head: ({ params }) => ({
     meta: [
-      { title: `Member — MarketOps` },
+      { title: `Member — Zexpand` },
       { name: "description", content: `Full marketing activity for member ${params.id}.` },
       { property: "og:title", content: "Team member activity" },
       { property: "og:description", content: "Every activity by this team member." },
