@@ -55,7 +55,8 @@ type Platform =
   | "YouTube"
   | "X"
   | "WhatsApp Business"
-  | "Email";
+  | "Email"
+  | "Other";
 
 const PLATFORM_META: Record<string, { icon: React.ComponentType<{ className?: string }>; tint: string }> = {
   Website: { icon: Globe, tint: "bg-slate-500/10 text-slate-600 dark:text-slate-300" },
@@ -67,6 +68,7 @@ const PLATFORM_META: Record<string, { icon: React.ComponentType<{ className?: st
   X: { icon: Twitter, tint: "bg-zinc-500/10 text-zinc-700 dark:text-zinc-300" },
   "WhatsApp Business": { icon: MessageCircle, tint: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
   Email: { icon: Mail, tint: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  Other: { icon: Link2, tint: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
 };
 
 const PLATFORM_ORDER: string[] = [
@@ -79,6 +81,7 @@ const PLATFORM_ORDER: string[] = [
   "X",
   "WhatsApp Business",
   "Email",
+  "Other",
 ];
 
 function CompanyLinksPage() {
