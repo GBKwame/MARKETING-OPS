@@ -146,7 +146,7 @@ function CompanyLinksPage() {
     setDeleting(true);
     try {
       await deleteCompanyLink(linkToDelete.id);
-      toast.success(`Deleted link "${linkToDelete.label || linkToDelete.platform}".`);
+      toast.success(`Deleted link for ${linkToDelete.platform}.`);
       setLinkToDelete(null);
     } catch (err: any) {
       toast.error(err.message || "Failed to delete link");
@@ -165,7 +165,7 @@ function CompanyLinksPage() {
             <Button
               size="sm"
               className="gap-1.5 font-bold shadow-xs cursor-pointer"
-              onClick={() => setEditingLink({ platform: "Facebook", label: "Main Account", url: "" })}
+              onClick={() => setEditingLink({ platform: "Facebook", url: "" })}
             >
               <Plus className="h-4 w-4" /> Add Company Link
             </Button>
@@ -225,26 +225,25 @@ function CompanyLinksPage() {
                               key={item.id}
                               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-muted/10 p-2.5 hover:bg-muted/30 transition-colors"
                             >
-                              <div className="min-w-0 flex-1">
-                                <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
-                                  <span>{item.label || item.platform}</span>
-                                  {item.handle && (
-                                    <Badge variant="secondary" className="text-[10px] font-mono h-4 px-1.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
-                                      {item.handle}
-                                    </Badge>
-                                  )}
-                                </div>
-                                {item.url && (
+                              <div className="min-w-0 flex-1 flex items-center gap-2.5 flex-wrap">
+                                {item.handle && (
+                                  <Badge variant="secondary" className="text-[11px] font-mono h-5 px-2 bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-bold">
+                                    {item.handle}
+                                  </Badge>
+                                )}
+                                {item.url ? (
                                   <a
                                     href={item.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline truncate max-w-[420px]"
+                                    className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline truncate max-w-[480px]"
                                   >
                                     <span className="truncate">{item.url}</span>
                                     <ExternalLink className="h-3 w-3 shrink-0 opacity-75" />
                                   </a>
-                                )}
+                                ) : !item.handle ? (
+                                  <span className="text-xs text-muted-foreground font-medium">N/A</span>
+                                ) : null}
                               </div>
 
                               <div className="flex items-center gap-1 shrink-0">
@@ -309,7 +308,6 @@ function CompanyLinksPage() {
                         onClick={() =>
                           setEditingLink({
                             platform: platformName,
-                            label: items.length > 0 ? `${platformName} Account #${items.length + 1}` : `${platformName} Main`,
                             url: "",
                           })
                         }
@@ -341,7 +339,7 @@ function CompanyLinksPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="py-2 text-xs text-muted-foreground">
-            Are you sure you want to delete <span className="font-bold text-foreground">"{linkToDelete?.label || linkToDelete?.platform}"</span>? This action cannot be undone.
+            Are you sure you want to delete this link entry for <span className="font-bold text-foreground">"{linkToDelete?.platform}"</span>? This action cannot be undone.
           </div>
           <DialogFooter className="gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={() => setLinkToDelete(null)} className="rounded-xl">
@@ -373,7 +371,6 @@ function AddEditLinkDialog({
   onSave: (data: { id?: string; platform: string; label?: string; url: string | null; handle?: string }) => Promise<void>;
 }) {
   const [platform, setPlatform] = useState("Facebook");
-  const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [handle, setHandle] = useState("");
   const [saving, setSaving] = useState(false);
@@ -381,7 +378,6 @@ function AddEditLinkDialog({
   useEffect(() => {
     if (link) {
       setPlatform(link.platform || "Facebook");
-      setLabel(link.label || "");
       setUrl(link.url || "");
       setHandle(link.handle || "");
     }
@@ -401,7 +397,7 @@ function AddEditLinkDialog({
       await onSave({
         id: link.id,
         platform,
-        label: label.trim() || platform,
+        label: handle.trim() || url.trim() || platform,
         url: url.trim() || null,
         handle: handle.trim() || undefined,
       });
@@ -439,37 +435,21 @@ function AddEditLinkDialog({
             </select>
           </div>
 
-          {/* Account Label */}
-          <div className="space-y-1.5">
-            <Label className="font-semibold text-muted-foreground">
-              Account Label / Title *
-            </Label>
-            <Input
-              placeholder="e.g. Main Page, Recruitment Group, Accra Support"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              className="h-9 text-xs"
-              required
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Descriptive name to distinguish multiple accounts for the same platform.
-            </p>
-          </div>
-
           {/* URL */}
           <div className="space-y-1.5">
-            <Label className="font-semibold text-muted-foreground">Website / Page Link URL</Label>
+            <Label className="font-semibold text-muted-foreground">URL</Label>
             <Input
               placeholder="https://facebook.com/your_page_or_group"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               className="h-9 text-xs"
+              autoFocus
             />
           </div>
 
           {/* Handle */}
           <div className="space-y-1.5">
-            <Label className="font-semibold text-muted-foreground">Display Handle / Username (Optional)</Label>
+            <Label className="font-semibold text-muted-foreground">Handle / Username (Optional)</Label>
             <Input
               placeholder="e.g. @zexpand_caregivers"
               value={handle}

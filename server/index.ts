@@ -39,6 +39,9 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
+// Drop legacy unique constraint on company_links to support multiple accounts per platform
+db.execute(sql`ALTER TABLE company_links DROP INDEX company_links_platform_unique`).catch(() => {});
+
 async function isOrgSuspended(organizationId?: string | null, role?: string): Promise<boolean> {
   if (role === "super_admin") return false;
   if (!organizationId) return false;
