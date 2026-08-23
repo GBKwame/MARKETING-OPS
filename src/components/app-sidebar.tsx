@@ -75,7 +75,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/80 font-semibold px-2">
+          <SidebarGroupLabel className="text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-400 font-bold px-2 py-1.5">
             Workspace
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -87,14 +87,14 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild isActive={isActive}>
                       <Link
                         to={item.url}
-                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
                           isActive
-                            ? "bg-primary/10 text-primary font-semibold"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                            ? "bg-sky-500/10 text-sky-600 dark:bg-[#18294a] dark:text-sky-400 font-bold shadow-xs border border-sky-500/20"
+                            : "text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
                         }`}
                       >
-                        <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                        {!collapsed && <span>{item.title}</span>}
+                        <item.icon className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-sky-600 dark:text-sky-400" : "text-slate-500 dark:text-slate-400"}`} />
+                        {!collapsed && <span className={isActive ? "text-sky-600 dark:text-sky-400" : "text-slate-800 dark:text-slate-200"}>{item.title}</span>}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

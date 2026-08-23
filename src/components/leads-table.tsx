@@ -404,14 +404,14 @@ export function LeadsTable({
 
               {/* Name */}
               {columnVisibility.name && (
-                <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Name
                 </TableHead>
               )}
 
               {/* Contact */}
               {columnVisibility.contact && (
-                <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Contact
                 </TableHead>
               )}
@@ -492,13 +492,13 @@ export function LeadsTable({
 
               {/* Comments */}
               {columnVisibility.comments && (
-                <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Comments
                 </TableHead>
               )}
 
               {/* ACTIONS Header */}
-              <TableHead className="text-right text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3 min-w-[90px]">
+              <TableHead className="text-right text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3 min-w-[90px]">
                 ACTIONS
               </TableHead>
             </TableRow>
@@ -506,7 +506,7 @@ export function LeadsTable({
           <TableBody>
             {filteredLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={visibleCount + 1} className="h-32 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={visibleCount + 1} className="h-32 text-center text-xs text-slate-600 dark:text-slate-300">
                   <div className="flex flex-col items-center justify-center gap-2 py-4">
                     <p>No leads match your criteria.</p>
                     {hasActiveFilters && (
@@ -525,33 +525,37 @@ export function LeadsTable({
                 return (
                   <TableRow key={l.id} className="hover:bg-muted/20 transition-colors">
                     {columnVisibility.campaign && (
-                      <TableCell className="px-3 py-3 text-xs font-semibold">{l.campaign || "General"}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs font-bold text-slate-900 dark:text-white">{l.campaign || "General"}</TableCell>
                     )}
                     {columnVisibility.name && (
-                      <TableCell className="px-3 py-3 text-xs font-bold text-foreground">{l.name}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs font-bold text-slate-900 dark:text-white">{l.name}</TableCell>
                     )}
                     {columnVisibility.contact && (
-                      <TableCell className="px-3 py-3 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">{l.contact || "—"}</span>
+                      <TableCell className="px-3 py-3 text-xs text-slate-800 dark:text-slate-200">
+                        <span className="font-semibold text-slate-900 dark:text-slate-200">{l.contact || "—"}</span>
                       </TableCell>
                     )}
                     {columnVisibility.channel && (
-                      <TableCell className="px-3 py-3 text-xs text-muted-foreground">{l.channel || "Direct"}</TableCell>
+                      <TableCell className="px-3 py-3">
+                        <Badge variant="secondary" className="font-bold text-[11px] bg-sky-100 text-sky-800 border border-sky-200 dark:bg-[#18294a] dark:text-sky-400 dark:border-sky-500/20 px-2.5 py-0.5 rounded-md">
+                          {l.channel || "Direct"}
+                        </Badge>
+                      </TableCell>
                     )}
                     {columnVisibility.approach && (
-                      <TableCell className="px-3 py-3 text-xs text-muted-foreground">{l.approach || "Organic Post"}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs font-semibold text-slate-700 dark:text-slate-200">{l.approach || "Organic Post"}</TableCell>
                     )}
                     {columnVisibility.destination && (
-                      <TableCell className="px-3 py-3 text-xs font-medium text-primary">{l.destination || "Social Media"}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs font-bold text-sky-600 dark:text-sky-400">{l.destination || "Social Media"}</TableCell>
                     )}
                     {columnVisibility.member && (
-                      <TableCell className="px-3 py-3 text-xs font-medium">{assignedMember?.name || "Team Member"}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs font-bold text-slate-800 dark:text-slate-200">{assignedMember?.name || "Team Member"}</TableCell>
                     )}
                     {columnVisibility.branch && (
-                      <TableCell className="px-3 py-3 text-xs text-muted-foreground">{assignedBranch?.name || "Accra HQ"}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs font-semibold text-slate-700 dark:text-slate-200">{assignedBranch?.name || "Accra HQ"}</TableCell>
                     )}
                     {columnVisibility.date && (
-                      <TableCell className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                      <TableCell className="px-3 py-3 text-xs font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap">
                         {format(new Date(l.createdAt), "dd MMM yyyy")}
                       </TableCell>
                     )}

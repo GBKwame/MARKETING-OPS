@@ -159,15 +159,15 @@ function ChannelPage() {
                   const m = memberById(r.memberId);
                   return (
                     <TableRow key={r.id} className="align-top">
-                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                      <TableCell className="whitespace-nowrap text-xs font-semibold text-slate-200">
                         {format(new Date(r.date), "d MMM")}
                       </TableCell>
-                      <TableCell className="text-sm font-medium">{m?.name}</TableCell>
+                      <TableCell className="text-sm font-bold text-white">{m?.name}</TableCell>
                       <TableCell>
                         <details>
-                          <summary className="cursor-pointer list-none text-sm"><span className="line-clamp-2">{r.content}</span></summary>
+                          <summary className="cursor-pointer list-none text-sm text-slate-100"><span className="line-clamp-2">{r.content}</span></summary>
                         </details>
-                        <div className="mt-1 text-xs text-muted-foreground">{r.summary}</div>
+                        <div className="mt-1 text-xs text-slate-300">{r.summary}</div>
                       </TableCell>
                       <TableCell><ProofThumbnail src={r.proof} /></TableCell>
                       <TableCell>

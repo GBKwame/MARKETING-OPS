@@ -381,22 +381,22 @@ function TeamPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
-              <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-4 py-3 min-w-[200px]">
+              <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-4 py-3 min-w-[200px]">
                 MEMBER NAME
               </TableHead>
-              <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-4 py-3 min-w-[140px]">
+              <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-4 py-3 min-w-[140px]">
                 INVITATION STATUS
               </TableHead>
-              <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-4 py-3 min-w-[160px]">
+              <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-4 py-3 min-w-[160px]">
                 CAMPAIGN NAME
               </TableHead>
-              <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-4 py-3 min-w-[150px]">
+              <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-4 py-3 min-w-[150px]">
                 BRANCH NAME
               </TableHead>
-              <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-4 py-3 min-w-[130px]">
+              <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-4 py-3 min-w-[130px]">
                 ROLE
               </TableHead>
-              <TableHead className="text-right text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-4 py-3 min-w-[140px]">
+              <TableHead className="text-right text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-4 py-3 min-w-[140px]">
                 ACTION
               </TableHead>
             </TableRow>
@@ -404,7 +404,7 @@ function TeamPage() {
           <TableBody>
             {members.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={6} className="h-32 text-center text-xs text-slate-600 dark:text-slate-300">
                   No team members found in your scoped view.
                 </TableCell>
               </TableRow>
@@ -429,7 +429,7 @@ function TeamPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                             <span>{m.name}</span>
                             {isSelf && (
                               <Badge variant="secondary" className="text-[9px] h-4 px-1">
@@ -437,7 +437,7 @@ function TeamPage() {
                               </Badge>
                             )}
                           </div>
-                          <div className="text-[11px] text-muted-foreground">{m.email}</div>
+                          <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">{m.email}</div>
                         </div>
                       </div>
                     </TableCell>
@@ -448,12 +448,12 @@ function TeamPage() {
                     </TableCell>
 
                     {/* CAMPAIGN NAME */}
-                    <TableCell className="px-4 py-3.5 text-xs font-semibold text-foreground">
+                    <TableCell className="px-4 py-3.5 text-xs font-bold text-slate-900 dark:text-white">
                       {m.campaignName || (m.role === "admin" ? "All Campaigns" : "General Campaign")}
                     </TableCell>
 
                     {/* BRANCH NAME */}
-                    <TableCell className="px-4 py-3.5 text-xs text-muted-foreground">
+                    <TableCell className="px-4 py-3.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
                       {m.branchName || m.branch || (m.role === "admin" ? "Workspace HQ" : "Default Branch")}
                     </TableCell>
 

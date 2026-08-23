@@ -517,24 +517,24 @@ function SuperAdminPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="text-[11px] font-bold uppercase tracking-wider">Company / Workspace</TableHead>
-                <TableHead className="text-[11px] font-bold uppercase tracking-wider">Client Admin Email (Shared To)</TableHead>
-                <TableHead className="text-[11px] font-bold uppercase tracking-wider">Status</TableHead>
-                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-center">Users</TableHead>
-                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-center">Leads</TableHead>
-                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-right">Actions</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">Company / Workspace</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">Client Admin Email (Shared To)</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">Status</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 text-center">Users</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 text-center">Leads</TableHead>
+                <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-xs text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-xs text-slate-600 dark:text-slate-300">
                     Loading SaaS client instances...
                   </TableCell>
                 </TableRow>
               ) : filteredOrgs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-xs text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-xs text-slate-600 dark:text-slate-300">
                     No organizations found matching "{search}".
                   </TableCell>
                 </TableRow>
@@ -551,7 +551,7 @@ function SuperAdminPage() {
                             {org.name.substring(0, 2)}
                           </div>
                           <div>
-                            <div className="text-xs font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                            <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
                               <span>{org.name}</span>
                               {org.id === "org-default" && (
                                 <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/40 text-primary whitespace-nowrap shrink-0">
@@ -559,9 +559,9 @@ function SuperAdminPage() {
                                 </Badge>
                               )}
                             </div>
-                            <div className="text-[11px] font-mono text-muted-foreground flex items-center gap-1 mt-0.5">
-                              <Globe className="h-3 w-3 text-muted-foreground" />
-                              <span>{org.slug}.marketops.app</span>
+                            <div className="text-[11px] font-mono text-slate-600 dark:text-slate-300 flex items-center gap-1 mt-0.5">
+                              <Globe className="h-3 w-3 text-slate-400" />
+                              <span>{org.slug}.zexpand.app</span>
                             </div>
                           </div>
                         </div>
@@ -569,16 +569,16 @@ function SuperAdminPage() {
 
                       <TableCell className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5">
-                          <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-xs font-medium text-foreground">{org.ownerEmail || "Not Provided"}</span>
+                          <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">{org.ownerEmail || "Not Provided"}</span>
                         </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                        <div className="text-[10px] mt-0.5 flex items-center gap-1">
                           {isRegistered ? (
-                            <span className="text-emerald-500 font-semibold flex items-center gap-1">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                               <UserCheck className="h-3 w-3" /> Admin Joined ({org.ownerName || "Active Owner"})
                             </span>
                           ) : (
-                            <span className="text-amber-500 font-medium flex items-center gap-1">
+                            <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
                               <Clock className="h-3 w-3" /> Pending Registration Signup
                             </span>
                           )}

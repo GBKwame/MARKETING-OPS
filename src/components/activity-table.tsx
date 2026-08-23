@@ -417,14 +417,14 @@ export function ActivityTable({
 
               {/* Destination */}
               {columnVisibility.destination && (
-                <TableHead className="min-w-[140px] text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="min-w-[140px] text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Destination
                 </TableHead>
               )}
 
               {/* Content */}
               {columnVisibility.content && (
-                <TableHead className="min-w-[200px] text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="min-w-[200px] text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Content
                 </TableHead>
               )}
@@ -469,42 +469,42 @@ export function ActivityTable({
 
               {/* Proof */}
               {columnVisibility.proof && (
-                <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Proof
                 </TableHead>
               )}
 
               {/* Link */}
               {columnVisibility.link && (
-                <TableHead className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Link
                 </TableHead>
               )}
 
               {/* Cost */}
               {columnVisibility.cost && (
-                <TableHead className="text-right text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="text-right text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Cost
                 </TableHead>
               )}
 
               {/* Leads */}
               {columnVisibility.leads && (
-                <TableHead className="text-right text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="text-right text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Leads
                 </TableHead>
               )}
 
               {/* Clients */}
               {columnVisibility.clients && (
-                <TableHead className="text-right text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3">
+                <TableHead className="text-right text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3">
                   Clients
                 </TableHead>
               )}
 
               {/* ACTIONS Header */}
               {!hideActions && (
-                <TableHead className="text-right text-[11px] font-semibold tracking-wider text-muted-foreground uppercase px-3 min-w-[90px]">
+                <TableHead className="text-right text-[11px] font-bold tracking-wider text-slate-700 dark:text-slate-200 uppercase px-3 min-w-[90px]">
                   ACTIONS
                 </TableHead>
               )}
@@ -530,23 +530,23 @@ export function ActivityTable({
               return (
                 <TableRow key={a.id} className="align-top hover:bg-muted/30 transition-colors">
                   {columnVisibility.campaign && (
-                    <TableCell className="font-medium text-xs px-3 py-3">{a.campaign}</TableCell>
+                    <TableCell className="font-bold text-xs text-slate-900 dark:text-white px-3 py-3">{a.campaign}</TableCell>
                   )}
 
                   {columnVisibility.channel && (
                     <TableCell className="px-3 py-3">
-                      <Badge variant="secondary" className="font-normal text-[11px]">
+                      <Badge variant="secondary" className="font-bold text-[11px] bg-sky-100 text-sky-800 border border-sky-200 dark:bg-[#18294a] dark:text-sky-400 dark:border-sky-500/20 px-2.5 py-0.5 rounded-md">
                         {a.channel}
                       </Badge>
                     </TableCell>
                   )}
 
                   {columnVisibility.approach && (
-                    <TableCell className="text-xs text-muted-foreground px-3 py-3">{a.approach}</TableCell>
+                    <TableCell className="text-xs font-semibold text-slate-700 dark:text-slate-200 px-3 py-3">{a.approach}</TableCell>
                   )}
 
                   {columnVisibility.destination && (
-                    <TableCell className="text-xs font-medium text-primary px-3 py-3">{a.destination}</TableCell>
+                    <TableCell className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline px-3 py-3">{a.destination}</TableCell>
                   )}
 
                   {columnVisibility.content && (
@@ -556,15 +556,15 @@ export function ActivityTable({
                   )}
 
                   {columnVisibility.member && (
-                    <TableCell className="text-xs font-medium px-3 py-3">{a.memberName || m?.name || a.memberId}</TableCell>
+                    <TableCell className="text-xs font-bold text-slate-800 dark:text-slate-200 px-3 py-3">{a.memberName || m?.name || a.memberId}</TableCell>
                   )}
 
                   {columnVisibility.branch && (
-                    <TableCell className="text-xs text-muted-foreground px-3 py-3">{a.branch}</TableCell>
+                    <TableCell className="text-xs font-semibold text-slate-700 dark:text-slate-200 px-3 py-3">{a.branch}</TableCell>
                   )}
 
                   {columnVisibility.date && (
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap px-3 py-3">
+                    <TableCell className="text-xs font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap px-3 py-3">
                       {format(new Date(a.date), "dd MMM yyyy")}
                     </TableCell>
                   )}
@@ -799,17 +799,17 @@ function HeaderFilterButton({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`group inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-wider uppercase transition-all cursor-pointer ${
+          className={`group inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
             active
-              ? "bg-primary/15 text-primary border border-primary/30 font-bold"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              ? "bg-sky-500/10 text-sky-700 border border-sky-300 dark:bg-[#18294a] dark:text-sky-400 dark:border-sky-500/30 font-bold"
+              : "text-slate-700 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-slate-800/60 dark:hover:text-white"
           }`}
           title={`Filter by ${label}`}
         >
           <span>{label}</span>
           <ChevronDown
             className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""} ${
-              active ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground"
+              active ? "text-sky-600 dark:text-sky-400" : "text-slate-500 group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-white"
             }`}
           />
           {active && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
@@ -909,10 +909,10 @@ function DateHeaderFilterButton({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`group inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold tracking-wider uppercase transition-all cursor-pointer ${
+          className={`group inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
             active
-              ? "bg-primary/15 text-primary border border-primary/30 font-bold"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              ? "bg-sky-500/10 text-sky-700 border border-sky-300 dark:bg-[#18294a] dark:text-sky-400 dark:border-sky-500/30 font-bold"
+              : "text-slate-700 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-slate-800/60 dark:hover:text-white"
           }`}
           title="Filter by Date Range"
         >
@@ -920,7 +920,7 @@ function DateHeaderFilterButton({
           <span className="truncate max-w-[130px]">{displayLabel}</span>
           <ChevronDown
             className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""} ${
-              active ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground"
+              active ? "text-sky-600 dark:text-sky-400" : "text-slate-500 group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-white"
             }`}
           />
           {active && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
