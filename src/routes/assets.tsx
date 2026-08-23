@@ -256,6 +256,16 @@ function AssetsPage() {
       return;
     }
 
+    if (type === "text" && !bodyText.trim() && !description.trim()) {
+      toast.error("Please provide text copy content or description.");
+      return;
+    }
+
+    if (type !== "text" && uploadMode === "url" && !url.trim()) {
+      toast.error("Please provide a file or media URL.");
+      return;
+    }
+
     if (uploadMode === "file" && fileError) {
       toast.error(fileError);
       return;
@@ -457,7 +467,40 @@ function AssetsPage() {
                   className="relative aspect-[16/10] bg-muted overflow-hidden cursor-pointer"
                   onClick={() => setPlayingAsset(a)}
                 >
-                  {isVideoFile ? (
+                  {a.type === "text" ? (
+                    <div className="h-full w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-4 text-slate-100 flex flex-col justify-between select-none relative overflow-hidden group/text border-b border-slate-700/60">
+                      {/* Top Header Label */}
+                      <div className="flex items-center justify-between z-10">
+                        <div className="flex items-center gap-1.5 text-sky-400 text-[10px] font-bold uppercase tracking-wider bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
+                          <FileText className="h-3.5 w-3.5" /> TEXT ASSET
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="h-5 text-[10px] font-semibold backdrop-blur-md bg-slate-800/90 text-slate-200 border-slate-700"
+                        >
+                          {a.category || "General"}
+                        </Badge>
+                      </div>
+
+                      {/* Text Snippet Preview */}
+                      <div className="my-1.5 z-10 flex-1 flex items-center">
+                        <p className="line-clamp-3 text-xs font-mono leading-relaxed text-slate-200 font-medium whitespace-pre-wrap">
+                          "{a.body || a.description || "No text preview provided."}"
+                        </p>
+                      </div>
+
+                      {/* Footer Info & Click-to-Open Indicator */}
+                      <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400 z-10 pt-1.5 border-t border-slate-700/50">
+                        <span>{(a.body || a.description || "").length} chars</span>
+                        <span className="text-sky-400 font-bold group-hover/text:underline flex items-center gap-1">
+                          <Eye className="h-3 w-3" /> Click to Open
+                        </span>
+                      </div>
+
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-sky-500/10 opacity-0 group-hover/text:opacity-100 transition-opacity pointer-events-none" />
+                    </div>
+                  ) : isVideoFile ? (
                     <video
                       src={mediaUrl}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
@@ -479,13 +522,14 @@ function AssetsPage() {
                     </div>
                   )}
 
-                  {/* Category Badge Tag */}
-                  <Badge
-                    variant="secondary"
-                    className="absolute top-2.5 right-2.5 h-5 text-[10px] font-semibold backdrop-blur-md bg-background/80"
-                  >
-                    {a.category || "General"}
-                  </Badge>
+                  {a.type !== "text" && (
+                    <Badge
+                      variant="secondary"
+                      className="absolute top-2.5 right-2.5 h-5 text-[10px] font-semibold backdrop-blur-md bg-background/80"
+                    >
+                      {a.category || "General"}
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="p-4">
@@ -522,17 +566,26 @@ function AssetsPage() {
               <div className="p-4 pt-0">
                 <div className="border-t pt-3">
                   {a.type === "text" ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full gap-1.5 cursor-pointer text-xs"
-                      onClick={() => {
-                        navigator.clipboard.writeText(a.body || a.description || "");
-                        toast.success("Copied text to clipboard!");
-                      }}
-                    >
-                      <Copy className="h-3.5 w-3.5" /> Copy Text
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1 gap-1.5 cursor-pointer text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow-2xs"
+                        onClick={() => setPlayingAsset(a)}
+                      >
+                        <Eye className="h-3.5 w-3.5" /> View Text
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 gap-1.5 cursor-pointer text-xs font-semibold"
+                        onClick={() => {
+                          navigator.clipboard.writeText(a.body || a.description || "");
+                          toast.success("Copied text to clipboard!");
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" /> Copy Text
+                      </Button>
+                    </div>
                   ) : a.type === "video" ? (
                     <div className="flex items-center gap-2">
                       {/* Watch Video Button */}
@@ -627,50 +680,96 @@ function AssetsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Watch / Video / Asset Modal */}
+      {/* Watch / Video / Asset / Text Preview Modal */}
       <Dialog open={!!playingAsset} onOpenChange={(val) => !val && setPlayingAsset(null)}>
         <DialogContent className="sm:max-w-[720px] p-0 rounded-2xl border bg-card overflow-hidden shadow-2xl">
           {playingAsset && (
             <div>
               <div className="relative border-b bg-muted/40 px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Play className="h-4 w-4 text-primary" />
+                  {playingAsset.type === "text" ? (
+                    <FileText className="h-4 w-4 text-sky-400" />
+                  ) : (
+                    <Play className="h-4 w-4 text-primary" />
+                  )}
                   <span className="font-bold text-sm">{playingAsset.title}</span>
                 </div>
                 <Badge variant="outline">{playingAsset.category || "General"}</Badge>
               </div>
 
-              <div className="p-4 bg-black flex justify-center items-center min-h-[340px]">
-                {playingAsset.type === "video" ? (
-                  getYouTubeEmbedUrl(playingAsset.fileUrl || playingAsset.previewUrl || "") ? (
-                    <iframe
-                      src={getYouTubeEmbedUrl(playingAsset.fileUrl || playingAsset.previewUrl || "")!}
-                      title={playingAsset.title}
-                      className="w-full aspect-video rounded-xl shadow-lg"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      src={playingAsset.fileUrl || playingAsset.previewUrl}
-                      controls
-                      autoPlay
-                      className="max-h-[70vh] w-full rounded-xl object-contain shadow-lg"
-                    />
-                  )
-                ) : (
-                  <img
-                    src={playingAsset.fileUrl || playingAsset.previewUrl}
-                    alt={playingAsset.title}
-                    className="max-h-[70vh] w-full object-contain rounded-xl shadow-lg"
-                  />
-                )}
-              </div>
+              {playingAsset.type === "text" ? (
+                <div className="p-6 bg-slate-950 text-slate-100 space-y-4">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span className="font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                      <FileText className="h-4 w-4" /> Copywriting & Text Material
+                    </span>
+                    <div className="flex items-center gap-3 font-semibold">
+                      <span>{(playingAsset.body || playingAsset.description || "").length} Chars</span>
+                      <span>·</span>
+                      <span>{(playingAsset.body || playingAsset.description || "").split(/\s+/).filter(Boolean).length} Words</span>
+                    </div>
+                  </div>
 
-              <div className="p-4 border-t text-xs space-y-1">
-                <div className="font-semibold text-foreground">{playingAsset.title}</div>
-                <div className="text-muted-foreground">{playingAsset.description}</div>
-              </div>
+                  {/* Full Copywriting Content Box */}
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-5 max-h-[55vh] overflow-y-auto font-mono text-xs text-slate-100 leading-relaxed whitespace-pre-wrap select-text shadow-inner">
+                    {playingAsset.body || playingAsset.description || "No text content provided."}
+                  </div>
+
+                  {playingAsset.description && playingAsset.body && (
+                    <div className="p-3 rounded-xl border border-slate-800 bg-slate-900/50 text-xs text-slate-300">
+                      <span className="font-bold text-slate-400 block mb-0.5">Campaign Notes:</span>
+                      {playingAsset.description}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      className="gap-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl px-5 shadow-sm cursor-pointer"
+                      onClick={() => {
+                        navigator.clipboard.writeText(playingAsset.body || playingAsset.description || "");
+                        toast.success("Copied text to clipboard!");
+                      }}
+                    >
+                      <Copy className="h-4 w-4" /> Copy Text Content
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="p-4 bg-black flex justify-center items-center min-h-[340px]">
+                    {playingAsset.type === "video" ? (
+                      getYouTubeEmbedUrl(playingAsset.fileUrl || playingAsset.previewUrl || "") ? (
+                        <iframe
+                          src={getYouTubeEmbedUrl(playingAsset.fileUrl || playingAsset.previewUrl || "")!}
+                          title={playingAsset.title}
+                          className="w-full aspect-video rounded-xl shadow-lg"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <video
+                          src={playingAsset.fileUrl || playingAsset.previewUrl}
+                          controls
+                          autoPlay
+                          className="max-h-[70vh] w-full rounded-xl object-contain shadow-lg"
+                        />
+                      )
+                    ) : (
+                      <img
+                        src={playingAsset.fileUrl || playingAsset.previewUrl}
+                        alt={playingAsset.title}
+                        className="max-h-[70vh] w-full object-contain rounded-xl shadow-lg"
+                      />
+                    )}
+                  </div>
+
+                  <div className="p-4 border-t text-xs space-y-1">
+                    <div className="font-semibold text-foreground">{playingAsset.title}</div>
+                    <div className="text-muted-foreground">{playingAsset.description}</div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </DialogContent>
