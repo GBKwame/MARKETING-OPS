@@ -1844,44 +1844,35 @@ app.get("/api/company-links", async (req, res) => {
 app.post("/api/company-links", async (req, res) => {
   try {
     const user = await getAuthUser(req);
-    if (!user || (user.role !== "admin" && user.role !== "manager")) {
-      return res.status(403).json({ error: "Only Admins and Managers can edit company links." });
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
+      return res.status(403).json({ error: "Only Admins can add or edit company links." });
     }
 
     const orgId = user.organizationId || "org-default";
-    const { platform, url, handle, label, category } = req.body;
+    const { id, platform, url, handle, label, category } = req.body;
 
     if (!platform) {
       return res.status(400).json({ error: "Platform name is required." });
     }
 
-    const [existing] = await db
-      .select()
-      .from(companyLinks)
-      .where(and(eq(companyLinks.organizationId, orgId), eq(companyLinks.platform, platform)));
-
-    if (existing) {
-      if (!url && !handle) {
-        await db.delete(companyLinks).where(eq(companyLinks.id, existing.id));
-        return res.json({ success: true, deleted: true });
-      }
+    if (id) {
+      // Update existing specific link entry
       await db
         .update(companyLinks)
         .set({
+          platform,
           url: url || null,
           handle: handle || null,
           label: label || platform,
           category: category || "Social",
         })
-        .where(eq(companyLinks.id, existing.id));
+        .where(and(eq(companyLinks.id, id), eq(companyLinks.organizationId, orgId)));
 
-      const [updated] = await db.select().from(companyLinks).where(eq(companyLinks.id, existing.id));
-      return res.json(updated);
+      const [updated] = await db.select().from(companyLinks).where(eq(companyLinks.id, id));
+      return res.json(updated || { id, platform, label, url, handle });
     } else {
-      if (!url && !handle) {
-        return res.json({ success: true });
-      }
-      const newLinkId = "cl-" + Date.now();
+      // Insert new multi-account link entry
+      const newLinkId = "cl-" + Date.now() + "-" + Math.random().toString(36).substring(2, 6);
       const newLink = {
         id: newLinkId,
         organizationId: orgId,
@@ -1896,6 +1887,22 @@ app.post("/api/company-links", async (req, res) => {
     }
   } catch (err: any) {
     console.error("Save company link error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/company-links/:id", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
+      return res.status(403).json({ error: "Only Admins can delete company links." });
+    }
+    const { id } = req.params;
+    const orgId = user.organizationId || "org-default";
+    await db.delete(companyLinks).where(and(eq(companyLinks.id, id), eq(companyLinks.organizationId, orgId)));
+    return res.json({ success: true, id });
+  } catch (err: any) {
+    console.error("Delete company link error:", err);
     return res.status(500).json({ error: err.message });
   }
 });

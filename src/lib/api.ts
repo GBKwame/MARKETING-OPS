@@ -252,6 +252,7 @@ export async function getCompanyLinksApi() {
 }
 
 export async function updateCompanyLinkApi(data: {
+  id?: string;
   platform: string;
   url: string | null;
   handle?: string;
@@ -261,6 +262,12 @@ export async function updateCompanyLinkApi(data: {
   return fetchApi<any>("/api/company-links", {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCompanyLinkApi(id: string) {
+  return fetchApi<{ success: boolean; id: string }>(`/api/company-links/${id}`, {
+    method: "DELETE",
   });
 }
 

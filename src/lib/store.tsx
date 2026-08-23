@@ -36,6 +36,7 @@ import {
   deleteLeadApi,
   getCompanyLinksApi,
   updateCompanyLinkApi,
+  deleteCompanyLinkApi,
   getCampaignsApi,
   getNotificationsApi,
   markNotificationsReadApi,
@@ -162,18 +163,12 @@ export interface Notification {
 }
 
 export interface CompanyLink {
-  platform:
-    | "Website"
-    | "Facebook"
-    | "Instagram"
-    | "TikTok"
-    | "LinkedIn"
-    | "YouTube"
-    | "X"
-    | "WhatsApp Business"
-    | "Email";
+  id: string;
+  platform: string;
+  label?: string;
   url: string | null;
-  handle?: string;
+  handle?: string | null;
+  category?: string;
 }
 
 export interface Branch {
@@ -207,7 +202,8 @@ interface StoreValue {
   updateLead: (id: string, data: Partial<Lead>) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
   companyLinks: CompanyLink[];
-  updateCompanyLink: (platform: string, url: string | null, handle?: string) => Promise<void>;
+  updateCompanyLink: (data: { id?: string; platform: string; url: string | null; handle?: string; label?: string }) => Promise<void>;
+  deleteCompanyLink: (id: string) => Promise<void>;
   notifications: Notification[];
   markAllRead: () => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
@@ -404,11 +400,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateCompanyLink = useCallback(
-    async (platform: string, url: string | null, handle?: string) => {
-      await updateCompanyLinkApi({ platform, url, handle });
+    async (data: { id?: string; platform: string; url: string | null; handle?: string; label?: string }) => {
+      await updateCompanyLinkApi(data);
       await loadAllData();
     },
     [loadAllData]
+  );
+
+  const deleteCompanyLink = useCallback(
+    async (id: string) => {
+      await deleteCompanyLinkApi(id);
+      setCompanyLinks((prev) => prev.filter((l) => l.id !== id));
+    },
+    []
   );
 
   const logActivity = useCallback(
@@ -547,6 +551,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     promoteTeamMember,
     companyLinks,
     updateCompanyLink,
+    deleteCompanyLink,
     notifications,
     markAllRead,
     markNotificationRead,
