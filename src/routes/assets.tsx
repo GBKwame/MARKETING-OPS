@@ -569,7 +569,7 @@ function AssetsPage() {
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
-                        className="flex-1 gap-1.5 cursor-pointer text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow-2xs"
+                        className="flex-1 gap-1.5 cursor-pointer text-xs font-semibold"
                         onClick={() => setPlayingAsset(a)}
                       >
                         <Eye className="h-3.5 w-3.5" /> View Text
