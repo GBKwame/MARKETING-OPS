@@ -28,6 +28,8 @@ import {
   getAssetsApi,
   createAssetApi,
   deleteAssetApi,
+  renameAssetCategoryApi,
+  deleteAssetCategoryApi,
   getLeadsApi,
   createLeadApi,
   updateLeadApi,
@@ -198,6 +200,8 @@ interface StoreValue {
   assets: Asset[];
   createAsset: (data: Partial<Asset>) => Promise<void>;
   deleteAsset: (id: string) => Promise<void>;
+  renameAssetCategory: (oldCategory: string, newCategory: string) => Promise<void>;
+  deleteAssetCategory: (category: string) => Promise<void>;
   leads: Lead[];
   createLead: (data: Partial<Lead>) => Promise<void>;
   updateLead: (id: string, data: Partial<Lead>) => Promise<void>;
@@ -470,6 +474,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setAssets((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
+  const renameAssetCategory = useCallback(async (oldCategory: string, newCategory: string) => {
+    await renameAssetCategoryApi(oldCategory, newCategory);
+    await loadAllData();
+  }, [loadAllData]);
+
+  const deleteAssetCategory = useCallback(async (category: string) => {
+    await deleteAssetCategoryApi(category);
+    await loadAllData();
+  }, [loadAllData]);
+
   const createLead = useCallback(async (data: Partial<Lead>) => {
     const newLead = await createLeadApi(data);
     await loadAllData();
@@ -522,6 +536,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     assets,
     createAsset,
     deleteAsset,
+    renameAssetCategory,
+    deleteAssetCategory,
     leads,
     createLead,
     updateLead,

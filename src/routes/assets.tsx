@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   Eye,
   Trash2,
+  Pencil,
+  FolderCog,
   Sparkles,
   Filter,
 } from "lucide-react";
@@ -131,7 +133,7 @@ function getAcceptAttribute(assetType: string): string {
 }
 
 function AssetsPage() {
-  const { currentUser, assets, createAsset, deleteAsset } = useStore();
+  const { currentUser, assets, createAsset, deleteAsset, renameAssetCategory, deleteAssetCategory } = useStore();
   const [tab, setTab] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [open, setOpen] = useState(false);
@@ -143,6 +145,13 @@ function AssetsPage() {
   // Delete Confirmation State
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Category Edit / Delete State
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editCatInput, setEditCatInput] = useState("");
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState(false);
+  const [renamingCategory, setRenamingCategory] = useState(false);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -207,8 +216,77 @@ function AssetsPage() {
 
     toast.success(`Category "${trimmed}" created successfully!`);
     setNewCatInput("");
-    setOpenCategoryModal(false);
     setCategorySelect(trimmed);
+  };
+
+  const handleRenameCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+    const trimmed = editCatInput.trim();
+    if (!trimmed) {
+      toast.error("Category name cannot be empty.");
+      return;
+    }
+    if (trimmed.toLowerCase() === editingCategory.toLowerCase()) {
+      setEditingCategory(null);
+      return;
+    }
+    if (
+      allCategories.some(
+        (c) => c.toLowerCase() === trimmed.toLowerCase() && c.toLowerCase() !== editingCategory.toLowerCase()
+      )
+    ) {
+      toast.error(`Category "${trimmed}" already exists.`);
+      return;
+    }
+
+    setRenamingCategory(true);
+    try {
+      const count = assets.filter((a) => (a.category || "General") === editingCategory).length;
+      await renameAssetCategory(editingCategory, trimmed);
+      const updated = customCategories.map((c) => (c === editingCategory ? trimmed : c));
+      setCustomCategories(updated);
+      try {
+        localStorage.setItem("marketops_custom_categories", JSON.stringify(updated));
+      } catch {}
+
+      if (selectedCategory === editingCategory) {
+        setSelectedCategory(trimmed);
+      }
+
+      toast.success(`Category "${editingCategory}" renamed to "${trimmed}". ${count} asset(s) updated.`);
+      setEditingCategory(null);
+      setEditCatInput("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to rename category.");
+    } finally {
+      setRenamingCategory(false);
+    }
+  };
+
+  const handleConfirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    setDeletingCategory(true);
+    try {
+      const affectedCount = assets.filter((a) => (a.category || "General") === categoryToDelete).length;
+      await deleteAssetCategory(categoryToDelete);
+      const updated = customCategories.filter((c) => c !== categoryToDelete);
+      setCustomCategories(updated);
+      try {
+        localStorage.setItem("marketops_custom_categories", JSON.stringify(updated));
+      } catch {}
+
+      if (selectedCategory === categoryToDelete) {
+        setSelectedCategory("all");
+      }
+
+      toast.success(`Category "${categoryToDelete}" deleted. ${affectedCount} asset(s) moved to General.`);
+      setCategoryToDelete(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete category.");
+    } finally {
+      setDeletingCategory(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -395,7 +473,7 @@ function AssetsPage() {
                 className="gap-1.5 cursor-pointer font-semibold shadow-xs"
                 onClick={() => setOpenCategoryModal(true)}
               >
-                <Plus className="h-4 w-4" /> Add Category
+                <FolderCog className="h-4 w-4 text-primary" /> Manage Categories
               </Button>
               <Button
                 size="sm"
@@ -1021,38 +1099,187 @@ function AssetsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Category Modal (Admins & Managers) */}
+      {/* Manage Categories Modal (Admins & Managers) */}
       <Dialog open={openCategoryModal} onOpenChange={setOpenCategoryModal}>
-        <DialogContent className="sm:max-w-[420px] rounded-2xl p-6">
-          <form onSubmit={handleAddCategory}>
+        <DialogContent className="sm:max-w-[480px] rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <FolderCog className="h-5 w-5 text-primary" /> Manage Asset Categories
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Add Category Section */}
+          <form onSubmit={handleAddCategory} className="py-2 border-b space-y-2">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Add New Category
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                required
+                placeholder="e.g. Q3 Campaigns, Social Media..."
+                value={newCatInput}
+                onChange={(e) => setNewCatInput(e.target.value)}
+                className="h-9 text-xs flex-1"
+              />
+              <Button size="sm" type="submit" className="h-9 font-bold px-4 gap-1.5 shrink-0">
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </div>
+          </form>
+
+          {/* Existing Categories List */}
+          <div className="py-2 space-y-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Existing Categories ({allCategories.length})
+            </div>
+            <div className="max-h-[260px] overflow-y-auto space-y-1.5 pr-1">
+              {allCategories.map((cat) => {
+                const isGeneral = cat.toLowerCase() === "general";
+                const count = assets.filter((a) => (a.category || "General").toLowerCase() === cat.toLowerCase()).length;
+
+                return (
+                  <div
+                    key={cat}
+                    className="flex items-center justify-between p-2.5 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-bold text-foreground truncate">{cat}</span>
+                      {isGeneral && (
+                        <Badge variant="secondary" className="text-[9px] h-4 px-1.5 font-bold">
+                          System Default
+                        </Badge>
+                      )}
+                      <span className="text-[10px] text-muted-foreground font-semibold">
+                        ({count} {count === 1 ? "asset" : "assets"})
+                      </span>
+                    </div>
+
+                    {!isGeneral && canUpload && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        {/* Edit Button */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg cursor-pointer"
+                          title={`Rename "${cat}"`}
+                          onClick={() => {
+                            setEditingCategory(cat);
+                            setEditCatInput(cat);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+
+                        {/* Delete Button */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer"
+                          title={`Delete "${cat}"`}
+                          onClick={() => setCategoryToDelete(cat)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2 border-t">
+            <Button variant="outline" size="sm" onClick={() => setOpenCategoryModal(false)} className="rounded-xl">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Category Dialog */}
+      <Dialog open={!!editingCategory} onOpenChange={(val) => !val && setEditingCategory(null)}>
+        <DialogContent className="sm:max-w-[400px] rounded-2xl p-6">
+          <form onSubmit={handleRenameCategory}>
             <DialogHeader>
               <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" /> Create New Asset Category
+                <Pencil className="h-4 w-4 text-primary" /> Rename Category
               </DialogTitle>
             </DialogHeader>
             <div className="py-4 space-y-2 text-xs">
-              <label className="font-semibold text-muted-foreground">Category Name *</label>
+              <label className="font-semibold text-muted-foreground">
+                Current Name: <span className="font-bold text-foreground">{editingCategory}</span>
+              </label>
               <Input
                 required
-                placeholder="e.g. Q3 Campaigns, Webinars, Brochures..."
-                value={newCatInput}
-                onChange={(e) => setNewCatInput(e.target.value)}
+                placeholder="Enter new category name..."
+                value={editCatInput}
+                onChange={(e) => setEditCatInput(e.target.value)}
                 className="h-9 text-xs"
                 autoFocus
               />
               <p className="text-[11px] text-muted-foreground">
-                This category will be available in the dropdown for all Admins and Managers when uploading marketing assets.
+                All marketing assets under <span className="font-semibold">"{editingCategory}"</span> will be updated to the new category name automatically.
               </p>
             </div>
             <DialogFooter className="gap-2">
-              <Button variant="outline" size="sm" type="button" onClick={() => setOpenCategoryModal(false)} className="rounded-xl">
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => setEditingCategory(null)}
+                className="rounded-xl"
+              >
                 Cancel
               </Button>
-              <Button size="sm" type="submit" className="rounded-xl font-bold px-4">
-                Save Category
+              <Button size="sm" type="submit" disabled={renamingCategory} className="rounded-xl font-bold px-4">
+                {renamingCategory ? "Saving..." : "Save New Name"}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Category Confirmation Dialog */}
+      <Dialog open={!!categoryToDelete} onOpenChange={(val) => !val && setCategoryToDelete(null)}>
+        <DialogContent className="sm:max-w-[440px] rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Confirm Category Deletion
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3 text-xs space-y-2">
+            <p className="text-foreground">
+              Are you sure you want to delete the category{" "}
+              <span className="font-bold text-destructive">"{categoryToDelete}"</span>?
+            </p>
+            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold text-[11px] leading-relaxed">
+              ⚠️ All{" "}
+              <span className="font-bold">
+                {assets.filter((a) => (a.category || "General").toLowerCase() === (categoryToDelete || "").toLowerCase()).length} asset(s)
+              </span>{" "}
+              currently in this category will be automatically reassigned to the{" "}
+              <span className="font-bold">"General"</span> category.
+            </div>
+          </div>
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCategoryToDelete(null)}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deletingCategory}
+              className="rounded-xl font-bold px-4"
+              onClick={handleConfirmDeleteCategory}
+            >
+              {deletingCategory ? "Deleting & Reassigning..." : "Delete & Move Assets to General"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

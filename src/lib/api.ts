@@ -209,6 +209,20 @@ export async function deleteAssetApi(id: string) {
   });
 }
 
+export async function renameAssetCategoryApi(oldCategory: string, newCategory: string) {
+  return fetchApi<{ success: boolean; oldCategory: string; newCategory: string }>("/api/assets/rename-category", {
+    method: "POST",
+    body: JSON.stringify({ oldCategory, newCategory }),
+  });
+}
+
+export async function deleteAssetCategoryApi(category: string) {
+  return fetchApi<{ success: boolean; category: string }>("/api/assets/delete-category", {
+    method: "POST",
+    body: JSON.stringify({ category }),
+  });
+}
+
 export async function getLeadsApi() {
   return fetchApi<any[]>("/api/leads");
 }

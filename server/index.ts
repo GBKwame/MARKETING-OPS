@@ -1650,6 +1650,51 @@ app.delete("/api/assets/:id", async (req, res) => {
   }
 });
 
+app.post("/api/assets/rename-category", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || (user.role !== "admin" && user.role !== "manager")) {
+      return res.status(403).json({ error: "Only Admins and Managers can rename categories." });
+    }
+    const { oldCategory, newCategory } = req.body;
+    if (!oldCategory || !newCategory) {
+      return res.status(400).json({ error: "oldCategory and newCategory are required." });
+    }
+    const orgId = user.organizationId || "org-default";
+    await db
+      .update(assets)
+      .set({ category: newCategory })
+      .where(and(eq(assets.organizationId, orgId), eq(assets.category, oldCategory)));
+    return res.json({ success: true, oldCategory, newCategory });
+  } catch (err: any) {
+    console.error("Rename category error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/assets/delete-category", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user || (user.role !== "admin" && user.role !== "manager")) {
+      return res.status(403).json({ error: "Only Admins and Managers can delete categories." });
+    }
+    const { category } = req.body;
+    if (!category) {
+      return res.status(400).json({ error: "Category is required." });
+    }
+    const orgId = user.organizationId || "org-default";
+    // Reassign all assets in this category to 'General'
+    await db
+      .update(assets)
+      .set({ category: "General" })
+      .where(and(eq(assets.organizationId, orgId), eq(assets.category, category)));
+    return res.json({ success: true, category });
+  } catch (err: any) {
+    console.error("Delete category error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ------------------------------------------------------------------
 // LEADS
 // ------------------------------------------------------------------
