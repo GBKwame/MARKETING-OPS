@@ -8,18 +8,18 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Zexpand — Marketing Operations Platform</title>
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/png" id="favicon-link" href="/logo-dark.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <script>
       (function () {
         try {
           var t = localStorage.getItem("mo-theme");
-          var fav = document.getElementById("favicon-link");
           if (t === "light") {
             document.documentElement.classList.remove("dark");
-            if (fav) fav.href = "/logo-light.png";
           } else {
             document.documentElement.classList.add("dark");
-            if (fav) fav.href = "/logo-dark.png";
           }
         } catch (e) {}
       })();
