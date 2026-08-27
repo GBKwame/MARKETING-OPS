@@ -15,10 +15,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
+    const fav = document.getElementById("favicon-link") as HTMLLinkElement | null;
     if (theme === "dark") {
       root.classList.add("dark");
+      if (fav) fav.href = "/logo-dark.png";
     } else {
       root.classList.remove("dark");
+      if (fav) fav.href = "/logo-light.png";
     }
     try {
       localStorage.setItem("mo-theme", theme);

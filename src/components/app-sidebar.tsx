@@ -59,9 +59,10 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border/60">
       <SidebarHeader className="border-b border-border/60">
         <Link to={isSuperAdmin ? "/super-admin" : "/"} className="flex items-center gap-2.5 px-2 py-2">
-          {/* Custom Zexpand Logo */}
-          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-amber-500/30 bg-black shadow-sm">
-            <img src="/logo.jpg" alt="Zexpand Logo" className="h-full w-full object-cover" />
+          {/* Custom Zexpand Logo (Theme Aware) */}
+          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-sky-500/20 bg-card shadow-xs">
+            <img src="/logo-light.png" alt="Zexpand Logo" className="h-full w-full object-cover dark:hidden" />
+            <img src="/logo-dark.png" alt="Zexpand Logo" className="h-full w-full object-cover hidden dark:block" />
           </div>
           {!collapsed && (
             <div className="min-w-0">

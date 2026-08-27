@@ -235,8 +235,9 @@ function LoginPage() {
       <div className="w-full max-w-md space-y-5">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="mx-auto h-20 w-20 overflow-hidden rounded-2xl border border-amber-500/30 bg-black p-1 shadow-lg ring-4 ring-primary/10">
-            <img src="/logo.jpg" alt="ZEXPAND" className="h-full w-full object-cover rounded-xl" />
+          <div className="mx-auto h-20 w-20 overflow-hidden rounded-2xl border border-sky-500/20 bg-card p-1 shadow-lg ring-4 ring-primary/10">
+            <img src="/logo-light.png" alt="ZEXPAND" className="h-full w-full object-cover rounded-xl dark:hidden" />
+            <img src="/logo-dark.png" alt="ZEXPAND" className="h-full w-full object-cover rounded-xl hidden dark:block" />
           </div>
           <div className="pt-1">
             <h1 className="text-2xl font-black tracking-widest text-foreground">ZEXPAND</h1>
