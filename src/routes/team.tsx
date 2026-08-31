@@ -16,6 +16,8 @@ import {
   Check,
   Sparkles,
   ArrowUpRight,
+  Pencil,
+  Phone,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -61,6 +63,7 @@ function TeamPage() {
     campaigns,
     inviteTeamMember,
     deleteTeamMember,
+    updateTeamMember,
     promoteTeamMember,
     refreshData,
   } = useStore();
@@ -83,6 +86,25 @@ function TeamPage() {
     userName: string;
     userEmail: string;
     role: string;
+  } | null>(null);
+
+  // Edit Member Modal State
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    role: "marketer" as Role,
+    branchId: "",
+    campaignId: "",
+  });
+  const [updatingMember, setUpdatingMember] = useState(false);
+
+  // WhatsApp Share Dialog State
+  const [whatsappShareData, setWhatsappShareData] = useState<{
+    memberName: string;
+    memberEmail: string;
+    whatsappUrl: string;
+    inviteMessage: string;
   } | null>(null);
 
   // Promotion Modal State
@@ -280,6 +302,51 @@ function TeamPage() {
     }
   };
 
+  // Handle Edit Member Submission
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMember) return;
+    if (!editForm.name.trim() || !editForm.email.trim()) {
+      toast.error("Name and email are required.");
+      return;
+    }
+
+    setUpdatingMember(true);
+    try {
+      await updateTeamMember(editingMember.id, {
+        name: editForm.name.trim(),
+        email: editForm.email.trim(),
+        role: editForm.role,
+        branchId: editForm.branchId || undefined,
+        campaignId: editForm.campaignId || undefined,
+      });
+
+      toast.success(`Member details updated for ${editForm.name}!`);
+      setEditingMember(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update member.");
+    } finally {
+      setUpdatingMember(false);
+    }
+  };
+
+  // Helper to open WhatsApp share dialog for any member row
+  const handleShareWhatsAppForMember = (m: Member) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8080";
+    const inviteLink = `${origin}/login?email=${encodeURIComponent(m.email)}&orgId=${currentUser?.organizationId || "org-default"}`;
+    const branchName = m.branchName || m.branch || "Workspace HQ";
+    const campaignName = m.campaignName || "General Campaign";
+    const waText = `Hi ${m.name}, you've been invited by ${currentUser?.name || "Zexpand Team"} to join Zexpand as ${m.role.toUpperCase()} for ${branchName} / ${campaignName}. Join workspace here: ${inviteLink}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(waText)}`;
+
+    setWhatsappShareData({
+      memberName: m.name,
+      memberEmail: m.email,
+      whatsappUrl,
+      inviteMessage: waText,
+    });
+  };
+
   const roleBadge = (mRole: Role) => {
     if (mRole === "admin") {
       return (
@@ -464,13 +531,27 @@ function TeamPage() {
 
                     {/* ACTION */}
                     <TableCell className="text-right px-4 py-3.5 whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* ADMIN ONLY PROMOTION / ROLE MANAGEMENT BUTTON */}
+                      <div className="flex items-center justify-end gap-1">
+                        {/* SHARE VIA WHATSAPP ICON BUTTON (HIDDEN FOR SELF & ADMINS) */}
+                        {!isSelf && m.role !== "admin" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 rounded-lg cursor-pointer transition-colors"
+                            title="Share Invitation via WhatsApp"
+                            onClick={() => handleShareWhatsAppForMember(m)}
+                          >
+                            <MessageSquare className="h-4 w-4 text-emerald-500 shrink-0" />
+                          </Button>
+                        )}
+
+                        {/* ADMIN ONLY PROMOTION / ROLE MANAGEMENT ICON BUTTON */}
                         {isAdmin && !isSelf && (
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="h-8 w-[120px] shrink-0 justify-center text-xs gap-1.5 font-semibold border-primary/30 hover:bg-primary/10 hover:text-primary rounded-lg cursor-pointer"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-slate-700 dark:text-slate-200 hover:text-amber-500 hover:bg-amber-500/10 border border-border/50 rounded-lg cursor-pointer transition-colors"
+                            title="Manage Role / Promote Member"
                             onClick={() => {
                               setPromotingMember(m);
                               setTargetRole(m.role === "marketer" ? "manager" : "admin");
@@ -478,17 +559,38 @@ function TeamPage() {
                               setPromoteCampaignId(m.campaignId || campaigns[0]?.id || "");
                             }}
                           >
-                            <UserCog className="h-3.5 w-3.5 text-primary shrink-0" />
-                            Manage Role
+                            <UserCog className="h-4 w-4" />
                           </Button>
                         )}
 
-                        {/* DELETE / REVOKE BUTTON */}
+                        {/* EDIT MEMBER ICON BUTTON (RIGHT BEFORE DELETE, HIDDEN FOR SELF & ADMINS) */}
+                        {!isSelf && m.role !== "admin" && (isAdmin || (isManager && m.role === "marketer")) && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-slate-700 dark:text-slate-200 hover:text-primary hover:bg-primary/10 border border-border/50 rounded-lg cursor-pointer transition-colors"
+                            title="Edit Member Details"
+                            onClick={() => {
+                              setEditingMember(m);
+                              setEditForm({
+                                name: m.name,
+                                email: m.email,
+                                role: m.role,
+                                branchId: m.branchId || branches[0]?.id || "",
+                                campaignId: m.campaignId || campaigns[0]?.id || "",
+                              });
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        {/* DELETE / REVOKE ICON BUTTON */}
                         {canDelete && (
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border/50 rounded-lg cursor-pointer transition-colors"
                             title="Revoke Permissions & Delete Member"
                             onClick={() => setMemberToDelete(m)}
                           >
@@ -699,12 +801,177 @@ function TeamPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
 
-          <DialogFooter className="pt-2">
-            <Button size="sm" onClick={() => setInviteSuccessData(null)} className="rounded-xl font-bold px-5">
-              Done
-            </Button>
-          </DialogFooter>
+      {/* ------------------------------------------------------------------ */}
+      {/* EDIT MEMBER MODAL */}
+      {/* ------------------------------------------------------------------ */}
+      <Dialog open={!!editingMember} onOpenChange={() => setEditingMember(null)}>
+        <DialogContent className="sm:max-w-[500px] rounded-2xl p-0 overflow-hidden border shadow-2xl">
+          <form onSubmit={handleEditSubmit}>
+            <div className="border-b bg-muted/40 px-6 py-5">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Pencil className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-lg font-bold">Edit Member Details</DialogTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Update member full name, email address, role, branch or campaign assignment.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 p-6 text-xs">
+              <div>
+                <label className="font-semibold text-muted-foreground">FULL NAME *</label>
+                <Input
+                  required
+                  placeholder="e.g. Kwame Mensah"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="h-9 text-xs rounded-lg mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-muted-foreground">EMAIL ADDRESS *</label>
+                <Input
+                  required
+                  type="email"
+                  placeholder="kwame@company.com"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="h-9 text-xs rounded-lg mt-1"
+                />
+              </div>
+
+              {/* ROLE SELECT */}
+              {isAdmin && (
+                <div>
+                  <label className="font-semibold text-muted-foreground">ROLE *</label>
+                  <select
+                    className="h-9 w-full rounded-lg border border-input bg-background px-3 text-xs shadow-2xs mt-1 font-medium"
+                    value={editForm.role}
+                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value as Role })}
+                  >
+                    <option value="admin">Admin (Full System Privileges)</option>
+                    <option value="manager">Manager (Branch & Campaign Lead)</option>
+                    <option value="marketer">Marketer (Executes Campaigns & Activity Logs)</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-muted-foreground">BRANCH *</label>
+                  <select
+                    className="h-9 w-full rounded-lg border border-input bg-background px-3 text-xs shadow-2xs mt-1 font-medium"
+                    value={editForm.branchId}
+                    onChange={(e) => setEditForm({ ...editForm, branchId: e.target.value })}
+                  >
+                    <option value="">Select Branch</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-muted-foreground">CAMPAIGN *</label>
+                  <select
+                    className="h-9 w-full rounded-lg border border-input bg-background px-3 text-xs shadow-2xs mt-1 font-medium"
+                    value={editForm.campaignId}
+                    onChange={(e) => setEditForm({ ...editForm, campaignId: e.target.value })}
+                  >
+                    <option value="">Select Campaign</option>
+                    {campaigns.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t bg-muted/20 px-6 py-4 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingMember(null)}
+                className="rounded-lg"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={updatingMember} className="rounded-lg font-semibold px-5 shadow-sm">
+                {updatingMember ? "Saving Changes..." : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* WHATSAPP SHARE DIALOG */}
+      {/* ------------------------------------------------------------------ */}
+      <Dialog open={!!whatsappShareData} onOpenChange={() => setWhatsappShareData(null)}>
+        <DialogContent className="sm:max-w-[500px] rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-emerald-600">
+              <MessageSquare className="h-5 w-5" /> Share Invitation via WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+
+          {whatsappShareData && (
+            <div className="space-y-4 py-2 text-xs">
+              <p className="text-muted-foreground">
+                Re-send or share workspace join link for <strong className="text-foreground">{whatsappShareData.memberName}</strong> ({whatsappShareData.memberEmail}).
+              </p>
+
+              <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center justify-between font-bold text-foreground">
+                  <span className="flex items-center gap-1.5 text-xs">
+                    <MessageSquare className="h-4 w-4 text-emerald-500" /> Instant Share Link
+                  </span>
+                  <Button
+                    size="sm"
+                    className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1 rounded-lg"
+                    onClick={() => window.open(whatsappShareData.whatsappUrl, "_blank")}
+                  >
+                    Open WhatsApp <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+
+                <div className="relative">
+                  <textarea
+                    readOnly
+                    value={whatsappShareData.inviteMessage}
+                    className="w-full h-24 p-2.5 text-[11px] rounded-lg border bg-background text-muted-foreground font-mono resize-none focus:outline-none"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="absolute right-2 bottom-2 h-7 text-[10px] gap-1 px-2 rounded-md"
+                    onClick={() => {
+                      navigator.clipboard.writeText(whatsappShareData.inviteMessage);
+                      setCopiedMessage(true);
+                      setTimeout(() => setCopiedMessage(false), 2000);
+                      toast.success("WhatsApp message copied to clipboard!");
+                    }}
+                  >
+                    {copiedMessage ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                    {copiedMessage ? "Copied!" : "Copy Text"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

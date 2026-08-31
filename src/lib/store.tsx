@@ -43,6 +43,7 @@ import {
   getTeamApi,
   inviteTeamMemberApi,
   deleteTeamMemberApi,
+  updateTeamMemberApi,
   promoteTeamMemberApi,
 } from "./api";
 
@@ -213,6 +214,7 @@ interface StoreValue {
   deleteActivity: (id: string) => Promise<void>;
   inviteTeamMember: (data: any) => Promise<{ success: boolean; emailSent: boolean; whatsappUrl: string; inviteMessage: string; user: any }>;
   deleteTeamMember: (id: string) => Promise<void>;
+  updateTeamMember: (id: string, data: any) => Promise<void>;
   promoteTeamMember: (id: string, data: any) => Promise<void>;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -514,6 +516,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await loadAllData();
   }, [loadAllData]);
 
+  const updateTeamMember = useCallback(async (id: string, data: any) => {
+    await updateTeamMemberApi(id, data);
+    await loadAllData();
+  }, [loadAllData]);
+
   const promoteTeamMember = useCallback(async (id: string, data: any) => {
     await promoteTeamMemberApi(id, data);
     await loadAllData();
@@ -548,6 +555,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     deleteLead,
     inviteTeamMember,
     deleteTeamMember,
+    updateTeamMember,
     promoteTeamMember,
     companyLinks,
     updateCompanyLink,

@@ -1122,6 +1122,42 @@ app.delete("/api/team/:id", async (req, res) => {
   }
 });
 
+app.patch("/api/team/:id", async (req, res) => {
+  try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || (authUser.role !== "admin" && authUser.role !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized to edit team member." });
+    }
+
+    const { id } = req.params;
+    const { name, email, role, branchId, campaignId } = req.body;
+
+    const [targetUser] = await db.select().from(users).where(eq(users.id, id));
+    if (!targetUser) return res.status(404).json({ error: "Member not found." });
+
+    if (authUser.role === "manager" && targetUser.role !== "marketer") {
+      return res.status(403).json({ error: "Managers can only edit Marketers." });
+    }
+
+    const updatePayload: any = {};
+    if (name) updatePayload.name = name.trim();
+    if (email) updatePayload.email = email.trim();
+    if (role && ["admin", "manager", "marketer"].includes(role)) {
+      if (authUser.role === "admin") updatePayload.role = role;
+    }
+    if (branchId !== undefined) updatePayload.branchId = branchId || null;
+    if (campaignId !== undefined) updatePayload.campaignId = campaignId || null;
+
+    await db.update(users).set(updatePayload).where(eq(users.id, id));
+
+    const [updated] = await db.select().from(users).where(eq(users.id, id));
+    return res.json({ success: true, user: updated });
+  } catch (err: any) {
+    console.error("Edit team member error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/team/:id/promote", async (req, res) => {
   try {
     const authUser = await getAuthUser(req);

@@ -302,6 +302,13 @@ export async function deleteTeamMemberApi(id: string) {
   });
 }
 
+export async function updateTeamMemberApi(id: string, data: any) {
+  return fetchApi<{ success: boolean; id: string }>(`/api/team/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function promoteTeamMemberApi(
   id: string,
   data: {
