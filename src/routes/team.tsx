@@ -93,6 +93,7 @@ function TeamPage() {
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
+    phone: "",
     role: "marketer" as Role,
     branchId: "",
     campaignId: "",
@@ -101,8 +102,10 @@ function TeamPage() {
 
   // WhatsApp Share Dialog State
   const [whatsappShareData, setWhatsappShareData] = useState<{
+    memberId?: string;
     memberName: string;
     memberEmail: string;
+    phone: string;
     whatsappUrl: string;
     inviteMessage: string;
   } | null>(null);
@@ -316,6 +319,7 @@ function TeamPage() {
       await updateTeamMember(editingMember.id, {
         name: editForm.name.trim(),
         email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
         role: editForm.role,
         branchId: editForm.branchId || undefined,
         campaignId: editForm.campaignId || undefined,
@@ -337,11 +341,17 @@ function TeamPage() {
     const branchName = m.branchName || m.branch || "Workspace HQ";
     const campaignName = m.campaignName || "General Campaign";
     const waText = `Hi ${m.name}, you've been invited by ${currentUser?.name || "Zexpand Team"} to join Zexpand as ${m.role.toUpperCase()} for ${branchName} / ${campaignName}. Join workspace here: ${inviteLink}`;
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(waText)}`;
+
+    const rawPhone = (m.phone || "").replace(/[^0-9]/g, "");
+    const whatsappUrl = rawPhone
+      ? `https://wa.me/${rawPhone}?text=${encodeURIComponent(waText)}`
+      : `https://wa.me/?text=${encodeURIComponent(waText)}`;
 
     setWhatsappShareData({
+      memberId: m.id,
       memberName: m.name,
       memberEmail: m.email,
+      phone: m.phone || "",
       whatsappUrl,
       inviteMessage: waText,
     });
@@ -575,6 +585,7 @@ function TeamPage() {
                               setEditForm({
                                 name: m.name,
                                 email: m.email,
+                                phone: m.phone || "",
                                 role: m.role,
                                 branchId: m.branchId || branches[0]?.id || "",
                                 campaignId: m.campaignId || campaigns[0]?.id || "",
@@ -836,16 +847,28 @@ function TeamPage() {
                 />
               </div>
 
-              <div>
-                <label className="font-semibold text-muted-foreground">EMAIL ADDRESS *</label>
-                <Input
-                  required
-                  type="email"
-                  placeholder="kwame@company.com"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  className="h-9 text-xs rounded-lg mt-1"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-muted-foreground">EMAIL ADDRESS *</label>
+                  <Input
+                    required
+                    type="email"
+                    placeholder="kwame@company.com"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    className="h-9 text-xs rounded-lg mt-1"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-muted-foreground">PHONE / WHATSAPP</label>
+                  <Input
+                    placeholder="+233 24 000 0000"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    className="h-9 text-xs rounded-lg mt-1"
+                  />
+                </div>
               </div>
 
               {/* ROLE SELECT */}
@@ -934,10 +957,31 @@ function TeamPage() {
                 Re-send or share workspace join link for <strong className="text-foreground">{whatsappShareData.memberName}</strong> ({whatsappShareData.memberEmail}).
               </p>
 
+              <div>
+                <label className="font-semibold text-muted-foreground">RECIPIENT WHATSAPP NUMBER</label>
+                <Input
+                  placeholder="e.g. +233 24 000 0000"
+                  value={whatsappShareData.phone}
+                  onChange={(e) => {
+                    const newPhone = e.target.value;
+                    const rawPhone = newPhone.replace(/[^0-9]/g, "");
+                    const newUrl = rawPhone
+                      ? `https://wa.me/${rawPhone}?text=${encodeURIComponent(whatsappShareData.inviteMessage)}`
+                      : `https://wa.me/?text=${encodeURIComponent(whatsappShareData.inviteMessage)}`;
+                    setWhatsappShareData({
+                      ...whatsappShareData,
+                      phone: newPhone,
+                      whatsappUrl: newUrl,
+                    });
+                  }}
+                  className="h-9 text-xs rounded-lg mt-1"
+                />
+              </div>
+
               <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center justify-between font-bold text-foreground">
                   <span className="flex items-center gap-1.5 text-xs">
-                    <MessageSquare className="h-4 w-4 text-emerald-500" /> Instant Share Link
+                    <MessageSquare className="h-4 w-4 text-emerald-500" /> Direct Contact Link
                   </span>
                   <Button
                     size="sm"

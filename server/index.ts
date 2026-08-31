@@ -41,6 +41,7 @@ app.use(cookieParser());
 
 // Drop legacy unique constraint on company_links to support multiple accounts per platform
 db.execute(sql`ALTER TABLE company_links DROP INDEX company_links_platform_unique`).catch(() => {});
+db.execute(sql`ALTER TABLE users ADD COLUMN phone VARCHAR(128)`).catch(() => {});
 
 async function isOrgSuspended(organizationId?: string | null, role?: string): Promise<boolean> {
   if (role === "super_admin") return false;
@@ -883,14 +884,18 @@ app.get("/api/team", async (req, res) => {
       : await db.select().from(users).where(eq(users.organizationId, orgId));
     const allBranches = await db.select().from(branches);
     const allCampaigns = await db.select().from(campaigns);
+    const allInvitations = await db.select().from(invitations);
+    const inviteMap = new Map(allInvitations.map((i) => [i.email.toLowerCase(), i]));
 
     const formatted = allUsers.map((u) => {
       const bObj = allBranches.find((br) => br.id === u.branchId);
       const cObj = allCampaigns.find((c) => c.id === u.campaignId);
+      const invObj = inviteMap.get(u.email.toLowerCase());
       return {
         id: u.id,
         name: u.name,
         email: u.email,
+        phone: u.phone || invObj?.phone || null,
         role: u.role,
         invitationStatus: u.invitationStatus || "accepted",
         branchId: u.branchId,
@@ -974,6 +979,7 @@ app.post("/api/team/invite", async (req, res) => {
       organizationId: userOrgId,
       name,
       email,
+      phone: phone ? phone.trim() : null,
       passwordHash,
       role: targetRole,
       branchId: targetBranchId ? targetBranchId : null,
@@ -1130,7 +1136,7 @@ app.patch("/api/team/:id", async (req, res) => {
     }
 
     const { id } = req.params;
-    const { name, email, role, branchId, campaignId } = req.body;
+    const { name, email, phone, role, branchId, campaignId } = req.body;
 
     const [targetUser] = await db.select().from(users).where(eq(users.id, id));
     if (!targetUser) return res.status(404).json({ error: "Member not found." });
@@ -1142,6 +1148,7 @@ app.patch("/api/team/:id", async (req, res) => {
     const updatePayload: any = {};
     if (name) updatePayload.name = name.trim();
     if (email) updatePayload.email = email.trim();
+    if (phone !== undefined) updatePayload.phone = phone ? phone.trim() : null;
     if (role && ["admin", "manager", "marketer"].includes(role)) {
       if (authUser.role === "admin") updatePayload.role = role;
     }

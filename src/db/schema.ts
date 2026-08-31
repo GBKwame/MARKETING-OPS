@@ -73,6 +73,7 @@ export const users = mysqlTable("users", {
   organizationId: varchar("organization_id", { length: 64 }).notNull().default("org-default"),
   name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
+  phone: varchar("phone", { length: 128 }),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   role: roleEnum.notNull().default("marketer"),
   branchId: varchar("branch_id", { length: 64 }),
