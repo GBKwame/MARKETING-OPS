@@ -181,8 +181,8 @@ function CompanyLinksPage() {
         }
       />
 
-      {/* Desktop / Tablet Table View */}
-      <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      {/* Desktop / Tablet / Mobile Table View */}
+      <div className="overflow-x-auto w-full rounded-2xl border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 border-b">
             <tr>

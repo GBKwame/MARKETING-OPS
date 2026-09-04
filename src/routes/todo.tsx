@@ -282,7 +282,7 @@ function TodoPage() {
 
       {/* New Task Dialog Modal */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="max-w-[95vw] sm:max-w-[480px] max-h-[90vh] overflow-y-auto rounded-2xl p-6">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>

@@ -622,7 +622,7 @@ function TeamPage() {
       {/* INVITATION MODAL */}
       {/* ------------------------------------------------------------------ */}
       <Dialog open={openInviteModal} onOpenChange={setOpenInviteModal}>
-        <DialogContent className="sm:max-w-[500px] rounded-2xl p-0 overflow-hidden border shadow-2xl">
+        <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto rounded-2xl p-0 border shadow-2xl">
           <form onSubmit={handleInviteSubmit}>
             <div className="border-b bg-muted/40 px-6 py-5">
               <div className="flex items-center gap-2.5">

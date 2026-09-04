@@ -760,7 +760,7 @@ function AssetsPage() {
 
       {/* Watch / Video / Asset / Text Preview Modal */}
       <Dialog open={!!playingAsset} onOpenChange={(val) => !val && setPlayingAsset(null)}>
-        <DialogContent className="sm:max-w-[720px] p-0 rounded-2xl border bg-card overflow-hidden shadow-2xl">
+        <DialogContent className="max-w-[95vw] sm:max-w-[720px] max-h-[90vh] overflow-y-auto p-0 rounded-2xl border bg-card shadow-2xl">
           {playingAsset && (
             <div>
               <div className="relative border-b bg-muted/40 px-6 py-4 flex items-center justify-between">

@@ -297,7 +297,7 @@ function LeadsPage() {
         setOpen(v);
         if (!v) resetForm();
       }}>
-        <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto p-0 rounded-2xl border bg-card shadow-2xl">
+        <DialogContent className="max-w-[95vw] sm:max-w-[580px] max-h-[90vh] overflow-y-auto p-0 rounded-2xl border bg-card shadow-2xl">
           <form onSubmit={handleSubmit}>
             <div className="relative border-b bg-muted/40 px-6 py-5">
               <div className="flex items-center gap-2.5">

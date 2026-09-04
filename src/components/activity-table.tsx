@@ -375,7 +375,7 @@ export function ActivityTable({
       </div>
 
       {/* Main Table */}
-      <div className="rounded-xl border bg-card shadow-xs overflow-hidden">
+      <div className="overflow-x-auto w-full rounded-xl border bg-card shadow-xs">
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow className="hover:bg-transparent border-b">
@@ -517,8 +517,8 @@ export function ActivityTable({
                   <div className="flex flex-col items-center justify-center gap-2 py-4">
                     <p>No marketing activity matches your criteria.</p>
                     {hasActiveFilters && (
-                      <Button variant="outline" size="sm" onClick={clearAllFilters} className="h-8 text-xs gap-1.5">
-                        <RotateCcw className="h-3.5 w-3.5" /> Clear All Filters
+                      <Button variant="outline" size="sm" onClick={clearAllFilters} className="h-8 text-xs gap-1">
+                        <RotateCcw className="h-3 w-3" /> Clear All Filters
                       </Button>
                     )}
                   </div>

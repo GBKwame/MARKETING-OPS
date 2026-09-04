@@ -344,7 +344,7 @@ function ApprovalsPage() {
       </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 rounded-2xl border bg-card shadow-2xl overflow-hidden">
+        <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto p-0 rounded-2xl border bg-card shadow-2xl">
           <form onSubmit={handleSubmit}>
             <div className="border-b bg-muted/40 px-6 py-4">
               <DialogTitle className="text-base font-bold">Submit for Approval</DialogTitle>

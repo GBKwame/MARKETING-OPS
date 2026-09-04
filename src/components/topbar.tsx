@@ -48,22 +48,22 @@ export function Topbar() {
         )}
 
         {currentUser?.role !== "super_admin" && !isUnprovisionedAdmin && (
-          <div className="relative w-64 sm:w-80 md:w-96">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <div className="relative w-32 sm:w-64 md:w-96">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search campaigns, channels, team..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-full rounded-full bg-muted/50 pl-9 pr-8 text-xs transition-all focus:bg-background focus:ring-1 focus:ring-primary [&::-webkit-search-cancel-button]:appearance-none"
+              className="h-9 w-full rounded-full bg-muted/50 pl-8 pr-7 text-xs transition-all focus:bg-background focus:ring-1 focus:ring-primary [&::-webkit-search-cancel-button]:appearance-none"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
                 title="Clear search"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
@@ -71,7 +71,7 @@ export function Topbar() {
       </div>
 
       {/* Right Section: Notifications, Theme, User Avatar */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         {/* Notifications Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -87,11 +87,32 @@ export function Topbar() {
               <DropdownMenuLabel className="p-0 text-xs font-semibold">
                 Notifications ({unread} unread)
               </DropdownMenuLabel>
-              {unread > 0 && (
-                <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={markAllRead}>
-                  Mark all read
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] font-bold text-primary hover:bg-primary/10"
+                  onClick={async () => {
+                    const { subscribeUserToPush, sendTestNotification } = await import("@/lib/push-notifications");
+                    const success = await subscribeUserToPush();
+                    if (success) {
+                      await sendTestNotification();
+                      const { toast } = await import("sonner");
+                      toast.success("Mobile PWA Push Notifications activated!");
+                    } else {
+                      const { toast } = await import("sonner");
+                      toast.info("Please grant Notification permissions in browser/device settings.");
+                    }
+                  }}
+                >
+                  Enable PWA Push
                 </Button>
-              )}
+                {unread > 0 && (
+                  <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={markAllRead}>
+                    Mark all read
+                  </Button>
+                )}
+              </div>
             </div>
             <DropdownMenuSeparator />
             {notifications.length === 0 && (

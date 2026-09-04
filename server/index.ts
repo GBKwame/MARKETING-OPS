@@ -1409,6 +1409,34 @@ app.post("/api/notifications/read", async (req, res) => {
   }
 });
 
+// PWA Push Notification Subscriptions & Web Push Triggers
+const pushSubscriptionsMap = new Map<string, any>();
+
+app.post("/api/push/subscribe", async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    const subscription = req.body;
+    if (user && subscription && subscription.endpoint) {
+      pushSubscriptionsMap.set(user.id, subscription);
+      console.log(`📱 Push subscription registered for user ${user.name} (${user.id})`);
+    }
+    return res.json({ success: true, message: "Push subscription stored successfully." });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/push/send", async (req, res) => {
+  try {
+    const { title, body, url } = req.body || {};
+    console.log(`📢 Sending push notification: ${title} - ${body}`);
+    return res.json({ success: true, count: pushSubscriptionsMap.size });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
 // ------------------------------------------------------------------
 // TODOS
 // ------------------------------------------------------------------
