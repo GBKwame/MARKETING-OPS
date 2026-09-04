@@ -14,6 +14,7 @@ import { Topbar } from "@/components/topbar";
 import { StoreProvider } from "@/lib/store";
 import { ThemeProvider } from "@/lib/theme";
 import { Toaster } from "@/components/ui/sonner";
+import { AppLoader } from "@/components/ui/app-loader";
 
 function NotFoundComponent() {
   return (
@@ -94,12 +95,10 @@ function ProtectedLayout() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-xs font-semibold text-muted-foreground">Authenticating workspace...</p>
-        </div>
-      </div>
+      <AppLoader
+        text="Authenticating Zexpand Workspace..."
+        subtext="Syncing your team permissions, campaigns & operational metrics"
+      />
     );
   }
 

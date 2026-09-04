@@ -1,4 +1,5 @@
-import { Bell, LogOut, Moon, Search, Sun, User, X, Sparkles, BellRing, CheckCheck, Smartphone } from "lucide-react";
+import { useState } from "react";
+import { Bell, LogOut, Moon, Search, Sun, User, X, Sparkles, BellRing, CheckCheck, Smartphone, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export function Topbar() {
   } = useStore();
   const navigate = useNavigate();
   const unread = notifications.filter((n) => !n.read).length;
+  const [isEnablingPush, setIsEnablingPush] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -123,18 +125,21 @@ export function Topbar() {
               )}
             </div>
 
-            {/* PWA Mobile Push Bar */}
-            <div className="bg-muted/40 px-3.5 py-2 border-b flex items-center justify-between gap-2 text-xs">
+            {/* PWA Mobile Push Bar (Hidden on desktop/laptop screens) */}
+            <div className="sm:hidden bg-muted/40 px-3.5 py-2 border-b flex items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                 <Smartphone className="h-3.5 w-3.5 text-primary shrink-0" />
                 <span>Mobile OS Push Alerts</span>
               </div>
               <Button
                 size="sm"
-                className="h-6 px-2 text-[10px] font-bold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs gap-1 cursor-pointer"
+                disabled={isEnablingPush}
+                className="h-6 px-2 text-[10px] font-bold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs gap-1 cursor-pointer disabled:opacity-70"
                 onClick={async (e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  if (isEnablingPush) return;
+                  setIsEnablingPush(true);
                   try {
                     const success = await subscribeUserToPush();
                     if (success) {
@@ -145,10 +150,22 @@ export function Topbar() {
                     }
                   } catch (err: any) {
                     toast.error("Failed to enable push notifications.");
+                  } finally {
+                    setIsEnablingPush(false);
                   }
                 }}
               >
-                <Sparkles className="h-3 w-3" /> Enable Push
+                {isEnablingPush ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                    <span>Enabling...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3" />
+                    <span>Enable Push</span>
+                  </>
+                )}
               </Button>
             </div>
 

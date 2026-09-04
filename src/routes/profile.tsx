@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { User, Mail, ShieldCheck, Building, Megaphone, Calendar, LogOut, Bell } from "lucide-react";
+import { User, Mail, ShieldCheck, Building, Megaphone, Calendar, LogOut, Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/profile")({
 function ProfilePage() {
   const { currentUser, branches, campaigns, logout } = useStore();
   const navigate = useNavigate();
+  const [isEnablingPush, setIsEnablingPush] = useState(false);
 
   if (!currentUser) return null;
 
@@ -93,8 +95,11 @@ function ProfilePage() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-2 cursor-pointer rounded-lg text-xs font-bold border-primary/30 text-primary hover:bg-primary/10"
+              disabled={isEnablingPush}
+              className="gap-2 cursor-pointer rounded-lg text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 disabled:opacity-70"
               onClick={async () => {
+                if (isEnablingPush) return;
+                setIsEnablingPush(true);
                 const { subscribeUserToPush, sendTestNotification } = await import("@/lib/push-notifications");
                 const { toast } = await import("sonner");
                 try {
@@ -107,10 +112,20 @@ function ProfilePage() {
                   }
                 } catch (err: any) {
                   toast.error("Failed to enable push notifications.");
+                } finally {
+                  setIsEnablingPush(false);
                 }
               }}
             >
-              <Bell className="h-4 w-4" /> Enable & Test Mobile Push Notifications
+              {isEnablingPush ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Enabling Push Notifications...
+                </>
+              ) : (
+                <>
+                  <Bell className="h-4 w-4" /> Enable & Test Mobile Push Notifications
+                </>
+              )}
             </Button>
 
             <Button
