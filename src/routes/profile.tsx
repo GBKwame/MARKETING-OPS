@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { User, Mail, ShieldCheck, Building, Megaphone, Calendar, LogOut } from "lucide-react";
+import { User, Mail, ShieldCheck, Building, Megaphone, Calendar, LogOut, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,7 +89,30 @@ function ProfilePage() {
           </div>
 
           {/* Account Actions */}
-          <div className="mt-6 border-t pt-4 flex justify-end">
+          <div className="mt-6 border-t pt-4 flex flex-wrap items-center justify-between gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 cursor-pointer rounded-lg text-xs font-bold border-primary/30 text-primary hover:bg-primary/10"
+              onClick={async () => {
+                const { subscribeUserToPush, sendTestNotification } = await import("@/lib/push-notifications");
+                const { toast } = await import("sonner");
+                try {
+                  const success = await subscribeUserToPush();
+                  if (success) {
+                    await sendTestNotification();
+                    toast.success("Mobile PWA Push Notifications activated!");
+                  } else {
+                    toast.info("Please allow Notification permissions in browser settings.");
+                  }
+                } catch (err: any) {
+                  toast.error("Failed to enable push notifications.");
+                }
+              }}
+            >
+              <Bell className="h-4 w-4" /> Enable & Test Mobile Push Notifications
+            </Button>
+
             <Button
               variant="destructive"
               size="sm"

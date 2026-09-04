@@ -27,45 +27,51 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 }
 
 export async function subscribeUserToPush(): Promise<boolean> {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    console.warn("Service Worker or Push Messaging is not supported.");
+  if (!("Notification" in window)) {
+    console.warn("Notifications are not supported in this browser environment.");
     return false;
   }
 
   try {
-    const permission = await requestNotificationPermission();
+    const permission = await Notification.requestPermission();
     if (permission !== "granted") {
+      console.warn("Notification permission was not granted:", permission);
       return false;
     }
 
-    const registration = await navigator.serviceWorker.ready;
-    let subscription = await registration.pushManager.getSubscription();
-
-    if (!subscription) {
+    if ("serviceWorker" in navigator && "PushManager" in window) {
       try {
-        const convertedKey = urlBase64ToUint8Array(PUBLIC_VAPID_KEY);
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: convertedKey,
-        });
-      } catch (subErr) {
-        console.warn("Standard VAPID subscription fallback:", subErr);
-        // Fallback for browsers that accept simple subscription without server key
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-        });
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+          try {
+            const convertedKey = urlBase64ToUint8Array(PUBLIC_VAPID_KEY);
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: convertedKey,
+            });
+          } catch (subErr) {
+            console.warn("Standard VAPID subscription fallback:", subErr);
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+            });
+          }
+        }
+
+        if (subscription) {
+          await fetch("/api/push/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(subscription.toJSON()),
+          }).catch((e) => console.warn("Failed to register subscription with server:", e));
+        }
+      } catch (swErr) {
+        console.warn("Service Worker push subscription error:", swErr);
       }
     }
 
-    if (subscription) {
-      // Send subscription object to backend server
-      await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(subscription.toJSON()),
-      });
-      return true;
-    }
+    return true;
   } catch (err) {
     console.error("Error subscribing user to push notifications:", err);
   }

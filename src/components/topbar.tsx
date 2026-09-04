@@ -1,4 +1,4 @@
-import { Bell, LogOut, Moon, Search, Sun, User, X } from "lucide-react";
+import { Bell, LogOut, Moon, Search, Sun, User, X, Sparkles, BellRing, CheckCheck, Smartphone } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import { useTheme } from "@/lib/theme";
 import { useStore } from "@/lib/store";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { subscribeUserToPush, sendTestNotification } from "@/lib/push-notifications";
+import { toast } from "sonner";
 
 export function Topbar() {
   const { theme, toggle } = useTheme();
@@ -82,57 +84,108 @@ export function Topbar() {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <div className="flex items-center justify-between px-3 py-2">
-              <DropdownMenuLabel className="p-0 text-xs font-semibold">
-                Notifications ({unread} unread)
-              </DropdownMenuLabel>
-              <div className="flex items-center gap-1">
+          <DropdownMenuContent align="end" className="w-[94vw] max-w-[390px] sm:w-96 rounded-2xl p-0 shadow-2xl border border-border/80 bg-card/95 backdrop-blur-xl overflow-hidden mt-1.5 transition-all">
+            {/* Premium Header */}
+            <div className="relative border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="relative grid h-8 w-8 place-items-center rounded-xl bg-primary/15 text-primary">
+                  <BellRing className="h-4 w-4" />
+                  {unread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background animate-pulse" />
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <span>Notifications</span>
+                    {unread > 0 ? (
+                      <Badge variant="default" className="h-4 px-1.5 text-[9px] font-black rounded-full bg-primary text-primary-foreground">
+                        {unread} NEW
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="h-4 px-1.5 text-[9px] font-semibold text-muted-foreground border-border">
+                        All Read
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Real-time workspace activity updates</p>
+                </div>
+              </div>
+
+              {unread > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 text-[10px] font-bold text-primary hover:bg-primary/10"
-                  onClick={async () => {
-                    const { subscribeUserToPush, sendTestNotification } = await import("@/lib/push-notifications");
+                  className="h-7 text-[10px] font-bold text-muted-foreground hover:text-foreground gap-1 px-2 rounded-lg cursor-pointer"
+                  onClick={markAllRead}
+                >
+                  <CheckCheck className="h-3.5 w-3.5" /> Read All
+                </Button>
+              )}
+            </div>
+
+            {/* PWA Mobile Push Bar */}
+            <div className="bg-muted/40 px-3.5 py-2 border-b flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                <Smartphone className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span>Mobile OS Push Alerts</span>
+              </div>
+              <Button
+                size="sm"
+                className="h-6 px-2 text-[10px] font-bold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs gap-1 cursor-pointer"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  try {
                     const success = await subscribeUserToPush();
                     if (success) {
                       await sendTestNotification();
-                      const { toast } = await import("sonner");
                       toast.success("Mobile PWA Push Notifications activated!");
                     } else {
-                      const { toast } = await import("sonner");
-                      toast.info("Please grant Notification permissions in browser/device settings.");
+                      toast.info("Please allow Notification permissions in browser settings.");
                     }
-                  }}
-                >
-                  Enable PWA Push
-                </Button>
-                {unread > 0 && (
-                  <Button variant="ghost" size="sm" className="h-6 text-[11px]" onClick={markAllRead}>
-                    Mark all read
-                  </Button>
-                )}
-              </div>
-            </div>
-            <DropdownMenuSeparator />
-            {notifications.length === 0 && (
-              <div className="p-4 text-center text-xs text-muted-foreground">No notifications yet</div>
-            )}
-            {notifications.map((n) => (
-              <DropdownMenuItem
-                key={n.id}
-                className="flex flex-col items-start gap-0.5 p-2.5 cursor-pointer hover:bg-muted/60"
-                onClick={() => markNotificationRead(n.id)}
+                  } catch (err: any) {
+                    toast.error("Failed to enable push notifications.");
+                  }
+                }}
               >
-                <div className="flex w-full items-center justify-between gap-2">
-                  <span className={`text-xs ${!n.read ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}>
-                    {n.title}
-                  </span>
-                  {!n.read && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
+                <Sparkles className="h-3 w-3" /> Enable Push
+              </Button>
+            </div>
+
+            {/* Notification List Container */}
+            <div className="max-h-[60vh] sm:max-h-[380px] overflow-y-auto p-1.5 space-y-1">
+              {notifications.length === 0 ? (
+                <div className="py-10 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
+                  <div className="h-10 w-10 rounded-full bg-muted/60 grid place-items-center text-muted-foreground/60">
+                    <Bell className="h-5 w-5" />
+                  </div>
+                  <p className="font-semibold text-foreground">No notifications yet</p>
+                  <p className="text-[10px] max-w-[200px] text-muted-foreground">Activities, leads & approvals will trigger instant alerts here.</p>
                 </div>
-                <span className="text-[11px] text-muted-foreground">{n.body}</span>
-              </DropdownMenuItem>
-            ))}
+              ) : (
+                notifications.map((n) => (
+                  <DropdownMenuItem
+                    key={n.id}
+                    className={`flex flex-col items-start gap-1 p-3 rounded-xl cursor-pointer transition-all ${
+                      !n.read
+                        ? "bg-primary/5 border-l-2 border-l-primary font-medium shadow-2xs"
+                        : "hover:bg-muted/50 text-muted-foreground opacity-85"
+                    }`}
+                    onClick={() => markNotificationRead(n.id)}
+                  >
+                    <div className="flex w-full items-center justify-between gap-2">
+                      <span className={`text-xs ${!n.read ? "font-bold text-foreground" : "font-semibold text-muted-foreground"}`}>
+                        {n.title}
+                      </span>
+                      {!n.read && (
+                        <span className="h-2 w-2 rounded-full bg-primary shrink-0 ring-2 ring-primary/20 animate-pulse" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">{n.body}</p>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
 
